@@ -2,170 +2,214 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>AstroLab MVP</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AstroLab</title>
 
 <style>
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  font-family: Arial, sans-serif;
   background: #0b0f1a;
   color: #fff;
-  padding: 50px 20px;
+  display: flex;
 }
 
-.hidden { display: none; }
-
-h1, h2 {
-  text-align: center;
-}
-
-p {
-  color: #b5b5b5;
-}
-
-.container {
-  max-width: 800px;
-  margin: auto;
-}
-
-.card {
-  background: #12172a;
-  padding: 25px;
-  border-radius: 10px;
-  margin-top: 30px;
-}
-
-button {
-  padding: 10px 18px;
-  background: #6a5cff;
-  border: none;
-  color: #fff;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-input {
-  width: 100%;
-  padding: 10px;
-  margin-top: 10px;
-  border-radius: 6px;
-  border: none;
-}
-
-.chat-box {
-  background: #0f1426;
-  height: 280px;
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  background: #11162a;
   padding: 15px;
-  overflow-y: auto;
-  border-radius: 8px;
+}
+
+.sidebar h2 {
+  margin: 0 0 20px;
+  font-size: 20px;
+}
+
+.sidebar button {
+  width: 100%;
   margin-bottom: 10px;
+  padding: 10px;
+  background: #1c2340;
+  color: #fff;
+  border: none;
+  cursor: pointer;
 }
 
-.msg { margin-bottom: 10px; }
-.client { color: #7cff9e; }
-.astrologer { color: #6a5cff; }
-
-.qr {
-  text-align: center;
-  margin-top: 20px;
+.sidebar button:hover {
+  background: #2a3370;
 }
 
-.footer {
+/* Main */
+.main {
+  flex: 1;
+  padding: 20px;
+}
+
+.hidden {
+  display: none;
+}
+
+/* Cards */
+.card {
+  background: #161c33;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+}
+
+.status {
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.online {
+  color: #00ff9c;
+}
+
+.offline {
+  color: #ff4d4d;
+}
+
+/* Locked */
+.locked {
   text-align: center;
-  margin-top: 50px;
-  font-size: 0.85rem;
-  color: #777;
+  margin-top: 100px;
+  opacity: 0.7;
+}
+
+/* Settings */
+.settings-box {
+  background: #161c33;
+  padding: 15px;
+  border-radius: 10px;
 }
 </style>
 </head>
 
 <body>
 
-<h1>AstroLab</h1>
-
-<!-- ROLE SELECTION -->
-<div class="container" id="roleSelect">
-  <p style="text-align:center">Choose your role</p>
-  <div class="card">
-    <button onclick="openAstrologer()">I’m an Astrologer</button>
-    <br><br>
-    <button onclick="openClient()">I’m a Client</button>
-  </div>
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <h2>AstroLab</h2>
+  <button onclick="showClients()">Client</button>
+  <button onclick="openAstrologer()">Astrologer</button>
+  <button onclick="openSettings()">Settings</button>
 </div>
 
-<!-- ASTROLOGER DASHBOARD -->
-<div class="container hidden" id="astroDash">
-  <h2>Astrologer Dashboard</h2>
-  <div class="card">
-    <p>Share this link or QR with your client:</p>
+<!-- MAIN -->
+<div class="main">
 
-    <input id="astroLink" readonly>
+  <!-- CLIENT VIEW -->
+  <div id="clientView">
+    <h3>Available Astrologers</h3>
 
-    <div class="qr">
-      <img id="qrImg" alt="QR Code">
+    <div class="card">
+      <strong>Astrologer A</strong>
+      <div class="status online">● Online</div>
+      <button onclick="startChat()">Scan QR & Chat</button>
+    </div>
+
+    <div class="card">
+      <strong>Astrologer B</strong>
+      <div class="status offline">● Offline</div>
+      <button disabled>Offline</button>
     </div>
   </div>
-</div>
 
-<!-- CLIENT SIGNUP -->
-<div class="container hidden" id="clientJoin">
-  <h2>Start Consultation</h2>
-  <div class="card">
-    <input type="text" id="clientName" placeholder="Your name">
-    <button onclick="startChat()">Start Chat</button>
+  <!-- ASTROLOGER LOCK -->
+  <div id="astrologerLocked" class="locked hidden">
+    <h2>Astrologer Role</h2>
+    <p>🔒 Locked — Coming Soon</p>
   </div>
-</div>
 
-<!-- CHAT -->
-<div class="container hidden" id="chat">
-  <h2>Private Chat</h2>
-  <div class="chat-box" id="chatBox">
-    <div class="msg astrologer">Astrologer: Hello, how can I help you?</div>
+  <!-- SETTINGS -->
+  <div id="settingsView" class="hidden">
+    <h3>Settings</h3>
+
+    <div class="settings-box">
+      <p><strong>Current Role:</strong> <span id="currentRole">Client</span></p>
+
+      <button onclick="switchRole('client')">Switch to Client</button>
+
+      <button onclick="switchRole('astrologer')" id="astroBtn">
+        Switch to Astrologer
+      </button>
+
+      <div id="adminPanel" class="hidden">
+        <hr>
+        <h4>Admin Controls</h4>
+        <button onclick="unlockAstrologer()">Unlock Astrologer Role</button>
+      </div>
+    </div>
   </div>
-  <input type="text" id="chatInput" placeholder="Type your message">
-  <button onclick="sendMsg()">Send</button>
-</div>
 
-<div class="footer">
-  Astrology is a guidance-based service. Results may vary.
 </div>
 
 <script>
-const params = new URLSearchParams(window.location.search);
-const astroId = params.get("astro") || "A";
+/* ===== CORE STATE ===== */
+let role = "client";
+let astrologerUnlocked = false;
+
+/* YOU ONLY */
+const isAdmin = true; // ← ONLY YOU HAVE TRUE
+
+/* ===== VIEW HANDLERS ===== */
+function hideAll() {
+  document.getElementById("clientView").classList.add("hidden");
+  document.getElementById("astrologerLocked").classList.add("hidden");
+  document.getElementById("settingsView").classList.add("hidden");
+}
+
+function showClients() {
+  role = "client";
+  updateRole();
+  hideAll();
+  document.getElementById("clientView").classList.remove("hidden");
+}
 
 function openAstrologer() {
-  document.getElementById("roleSelect").classList.add("hidden");
-  document.getElementById("astroDash").classList.remove("hidden");
-
-  const link = `${window.location.origin}${window.location.pathname}?astro=${astroId}`;
-  document.getElementById("astroLink").value = link;
-
-  document.getElementById("qrImg").src =
-    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(link)}`;
+  hideAll();
+  if (!astrologerUnlocked && !isAdmin) {
+    document.getElementById("astrologerLocked").classList.remove("hidden");
+  } else {
+    alert("Astrologer dashboard coming next phase.");
+  }
 }
 
-function openClient() {
-  document.getElementById("roleSelect").classList.add("hidden");
-  document.getElementById("clientJoin").classList.remove("hidden");
+function openSettings() {
+  hideAll();
+  document.getElementById("settingsView").classList.remove("hidden");
 }
 
+/* ===== ROLE CONTROL ===== */
+function switchRole(r) {
+  if (r === "astrologer" && !astrologerUnlocked && !isAdmin) {
+    alert("Astrologer role is locked.");
+    return;
+  }
+  role = r;
+  updateRole();
+}
+
+function updateRole() {
+  document.getElementById("currentRole").innerText =
+    role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+/* ===== ADMIN ===== */
+if (isAdmin) {
+  document.getElementById("adminPanel").classList.remove("hidden");
+}
+
+function unlockAstrologer() {
+  astrologerUnlocked = true;
+  alert("Astrologer role unlocked.");
+}
+
+/* ===== CHAT (SIMULATED QR FLOW) ===== */
 function startChat() {
-  const name = document.getElementById("clientName").value;
-  if (!name) return alert("Enter your name");
-  document.getElementById("clientJoin").classList.add("hidden");
-  document.getElementById("chat").classList.remove("hidden");
-}
-
-function sendMsg() {
-  const input = document.getElementById("chatInput");
-  if (!input.value) return;
-  const box = document.getElementById("chatBox");
-  box.innerHTML += `<div class="msg client">You: ${input.value}</div>`;
-  input.value = "";
-  box.scrollTop = box.scrollHeight;
+  alert("QR scanned ✔ Chat session started (demo).");
 }
 </script>
 
