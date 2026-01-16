@@ -17,31 +17,26 @@ body {
   display: flex;
   height: 100vh;
 }
-
 .sidebar {
   width: 230px;
   background: #ffffff;
   border-right: 1px solid #ddd;
   padding: 15px;
 }
-
 .sidebar h2 {
   margin-bottom: 20px;
 }
-
 .sidebar button {
   width: 100%;
   padding: 10px;
   margin-bottom: 10px;
   cursor: pointer;
 }
-
 .main {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
 }
-
 .card {
   background: #ffffff;
   border: 1px solid #ddd;
@@ -49,9 +44,7 @@ body {
   padding: 15px;
   margin-bottom: 10px;
 }
-
 .hidden { display: none; }
-
 .chat-box {
   height: 300px;
   border: 1px solid #ddd;
@@ -59,7 +52,6 @@ body {
   overflow-y: auto;
   background: #fff;
 }
-
 input, button {
   padding: 8px;
   margin-top: 5px;
@@ -89,12 +81,11 @@ input, button {
     <label>
       <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
     </label>
-
     <h4>Chat Requests</h4>
     <div id="requestList"></div>
   </div>
 
-  <!-- CHAT -->
+  <!-- CHAT VIEW -->
   <div id="chatView" class="hidden">
     <h3>Live Chat</h3>
     <div class="chat-box" id="messages"></div>
@@ -122,12 +113,14 @@ const db = firebase.database();
 const userId = "user_" + Math.random().toString(36).slice(2);
 let role = "client";
 let chatId = null;
+let otherUserId = null;
 
 /* ================= ROLE SWITCH ================= */
 function switchRole(r) {
   role = r;
   document.getElementById("clientView").classList.toggle("hidden", r !== "client");
   document.getElementById("astrologerView").classList.toggle("hidden", r !== "astrologer");
+  document.getElementById("chatView").classList.add("hidden");
 }
 
 /* ================= PRESENCE ================= */
@@ -187,15 +180,27 @@ function listenForRequests() {
 }
 
 function acceptRequest(reqId, clientId) {
-  chatId = db.ref().push().key;
-  db.ref(`chats/${chatId}`).set({ active: true });
+  chatId = db.ref().push().key; // unique chat
+  otherUserId = clientId;
+  db.ref(`chats/${chatId}`).set({ active: true, participants: { [userId]: true, [clientId]: true } });
   db.ref(`requests/${userId}/${reqId}`).remove();
   openChat(chatId);
+  // notify client to join
+  db.ref(`currentChat/${clientId}`).set(chatId);
 }
 
 function rejectRequest(reqId) {
   db.ref(`requests/${userId}/${reqId}`).remove();
 }
+
+/* ================= LISTEN FOR CHAT ASSIGNMENT (CLIENT SIDE) ================= */
+db.ref(`currentChat/${userId}`).on("value", snap => {
+  if (snap.exists()) {
+    chatId = snap.val();
+    otherUserId = null; // client doesn’t need otherUserId for now
+    openChat(chatId);
+  }
+});
 
 /* ================= CHAT ================= */
 function openChat(id) {
@@ -203,10 +208,12 @@ function openChat(id) {
   const box = document.getElementById("messages");
   box.innerHTML = "";
 
+  // listen for messages
   db.ref(`chats/${id}/messages`).on("child_added", snap => {
     const p = document.createElement("div");
     p.textContent = snap.val().from + ": " + snap.val().text;
     box.appendChild(p);
+    box.scrollTop = box.scrollHeight;
   });
 }
 
@@ -226,6 +233,8 @@ function endChat() {
   db.ref(`chats/${chatId}`).remove();
   chatId = null;
   document.getElementById("chatView").classList.add("hidden");
+  if(role === "client") db.ref(`currentChat/${userId}`).remove();
+  if(role === "astrologer" && otherUserId) db.ref(`currentChat/${otherUserId}`).remove();
 }
 </script>
 
