@@ -2,214 +2,230 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>AstroLab MVP</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AstroLab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: #0b0f1a;
-  color: #fff;
+  background: #f4f6f8;
   display: flex;
+  height: 100vh;
 }
 
-/* Sidebar */
 .sidebar {
-  width: 220px;
-  background: #11162a;
+  width: 230px;
+  background: #ffffff;
+  border-right: 1px solid #ddd;
   padding: 15px;
 }
 
 .sidebar h2 {
-  margin: 0 0 20px;
-  font-size: 20px;
+  margin-bottom: 20px;
 }
 
 .sidebar button {
   width: 100%;
-  margin-bottom: 10px;
   padding: 10px;
-  background: #1c2340;
-  color: #fff;
-  border: none;
+  margin-bottom: 10px;
   cursor: pointer;
 }
 
-.sidebar button:hover {
-  background: #2a3370;
-}
-
-/* Main */
 .main {
   flex: 1;
   padding: 20px;
+  overflow-y: auto;
 }
 
-.hidden {
-  display: none;
-}
-
-/* Cards */
 .card {
-  background: #161c33;
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
   padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
-.status {
-  font-size: 12px;
+.hidden { display: none; }
+
+.chat-box {
+  height: 300px;
+  border: 1px solid #ddd;
+  padding: 10px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+input, button {
+  padding: 8px;
   margin-top: 5px;
-}
-
-.online {
-  color: #00ff9c;
-}
-
-.offline {
-  color: #ff4d4d;
-}
-
-/* Locked */
-.locked {
-  text-align: center;
-  margin-top: 100px;
-  opacity: 0.7;
-}
-
-/* Settings */
-.settings-box {
-  background: #161c33;
-  padding: 15px;
-  border-radius: 10px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- SIDEBAR -->
 <div class="sidebar">
   <h2>AstroLab</h2>
-  <button onclick="showClients()">Client</button>
-  <button onclick="openAstrologer()">Astrologer</button>
-  <button onclick="openSettings()">Settings</button>
+  <button onclick="switchRole('client')">Client</button>
+  <button onclick="switchRole('astrologer')">Astrologer</button>
 </div>
 
-<!-- MAIN -->
 <div class="main">
 
   <!-- CLIENT VIEW -->
   <div id="clientView">
-    <h3>Available Astrologers</h3>
-
-    <div class="card">
-      <strong>Astrologer A</strong>
-      <div class="status online">● Online</div>
-      <button onclick="startChat()">Scan QR & Chat</button>
-    </div>
-
-    <div class="card">
-      <strong>Astrologer B</strong>
-      <div class="status offline">● Offline</div>
-      <button disabled>Offline</button>
-    </div>
+    <h3>Online Astrologers</h3>
+    <div id="astrologerList"></div>
   </div>
 
-  <!-- ASTROLOGER LOCK -->
-  <div id="astrologerLocked" class="locked hidden">
-    <h2>Astrologer Role</h2>
-    <p>🔒 Locked — Coming Soon</p>
+  <!-- ASTROLOGER VIEW -->
+  <div id="astrologerView" class="hidden">
+    <h3>Astrologer Dashboard</h3>
+    <label>
+      <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
+    </label>
+
+    <h4>Chat Requests</h4>
+    <div id="requestList"></div>
   </div>
 
-  <!-- SETTINGS -->
-  <div id="settingsView" class="hidden">
-    <h3>Settings</h3>
-
-    <div class="settings-box">
-      <p><strong>Current Role:</strong> <span id="currentRole">Client</span></p>
-
-      <button onclick="switchRole('client')">Switch to Client</button>
-
-      <button onclick="switchRole('astrologer')" id="astroBtn">
-        Switch to Astrologer
-      </button>
-
-      <div id="adminPanel" class="hidden">
-        <hr>
-        <h4>Admin Controls</h4>
-        <button onclick="unlockAstrologer()">Unlock Astrologer Role</button>
-      </div>
-    </div>
+  <!-- CHAT -->
+  <div id="chatView" class="hidden">
+    <h3>Live Chat</h3>
+    <div class="chat-box" id="messages"></div>
+    <input id="msgInput" placeholder="Type message">
+    <br>
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="endChat()">End Chat</button>
   </div>
 
 </div>
 
 <script>
-/* ===== CORE STATE ===== */
+/* ================= FIREBASE CONFIG ================= */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "PASTE_REALTIME_DATABASE_URL_HERE",
+  projectId: "YOUR_PROJECT_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ================= STATE ================= */
+const userId = "user_" + Math.random().toString(36).slice(2);
 let role = "client";
-let astrologerUnlocked = false;
+let chatId = null;
 
-/* YOU ONLY */
-const isAdmin = true; // ← ONLY YOU HAVE TRUE
-
-/* ===== VIEW HANDLERS ===== */
-function hideAll() {
-  document.getElementById("clientView").classList.add("hidden");
-  document.getElementById("astrologerLocked").classList.add("hidden");
-  document.getElementById("settingsView").classList.add("hidden");
-}
-
-function showClients() {
-  role = "client";
-  updateRole();
-  hideAll();
-  document.getElementById("clientView").classList.remove("hidden");
-}
-
-function openAstrologer() {
-  hideAll();
-  if (!astrologerUnlocked && !isAdmin) {
-    document.getElementById("astrologerLocked").classList.remove("hidden");
-  } else {
-    alert("Astrologer dashboard coming next phase.");
-  }
-}
-
-function openSettings() {
-  hideAll();
-  document.getElementById("settingsView").classList.remove("hidden");
-}
-
-/* ===== ROLE CONTROL ===== */
+/* ================= ROLE SWITCH ================= */
 function switchRole(r) {
-  if (r === "astrologer" && !astrologerUnlocked && !isAdmin) {
-    alert("Astrologer role is locked.");
-    return;
-  }
   role = r;
-  updateRole();
+  document.getElementById("clientView").classList.toggle("hidden", r !== "client");
+  document.getElementById("astrologerView").classList.toggle("hidden", r !== "astrologer");
 }
 
-function updateRole() {
-  document.getElementById("currentRole").innerText =
-    role.charAt(0).toUpperCase() + role.slice(1);
+/* ================= PRESENCE ================= */
+function toggleOnline(isOnline) {
+  const ref = db.ref("presence/" + userId);
+  if (isOnline) {
+    ref.set({ role: "astrologer" });
+    ref.onDisconnect().remove();
+    listenForRequests();
+  } else {
+    ref.remove();
+  }
 }
 
-/* ===== ADMIN ===== */
-if (isAdmin) {
-  document.getElementById("adminPanel").classList.remove("hidden");
+/* ================= SHOW ONLINE ASTROLOGERS ================= */
+db.ref("presence").on("value", snap => {
+  const list = document.getElementById("astrologerList");
+  list.innerHTML = "";
+  snap.forEach(c => {
+    if (c.val().role === "astrologer") {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <strong>${c.key}</strong><br>
+        <button onclick="requestChat('${c.key}')">Request Chat</button>
+      `;
+      list.appendChild(card);
+    }
+  });
+});
+
+/* ================= CHAT REQUEST ================= */
+function requestChat(astrologerId) {
+  const reqId = db.ref().push().key;
+  db.ref(`requests/${astrologerId}/${reqId}`).set({
+    from: userId
+  });
+  alert("Chat request sent");
 }
 
-function unlockAstrologer() {
-  astrologerUnlocked = true;
-  alert("Astrologer role unlocked.");
+/* ================= ASTROLOGER REQUEST INBOX ================= */
+function listenForRequests() {
+  db.ref("requests/" + userId).on("value", snap => {
+    const box = document.getElementById("requestList");
+    box.innerHTML = "";
+    snap.forEach(r => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        Request from ${r.val().from}<br>
+        <button onclick="acceptRequest('${r.key}','${r.val().from}')">Accept</button>
+        <button onclick="rejectRequest('${r.key}')">Reject</button>
+      `;
+      box.appendChild(card);
+    });
+  });
 }
 
-/* ===== CHAT (SIMULATED QR FLOW) ===== */
-function startChat() {
-  alert("QR scanned ✔ Chat session started (demo).");
+function acceptRequest(reqId, clientId) {
+  chatId = db.ref().push().key;
+  db.ref(`chats/${chatId}`).set({ active: true });
+  db.ref(`requests/${userId}/${reqId}`).remove();
+  openChat(chatId);
+}
+
+function rejectRequest(reqId) {
+  db.ref(`requests/${userId}/${reqId}`).remove();
+}
+
+/* ================= CHAT ================= */
+function openChat(id) {
+  document.getElementById("chatView").classList.remove("hidden");
+  const box = document.getElementById("messages");
+  box.innerHTML = "";
+
+  db.ref(`chats/${id}/messages`).on("child_added", snap => {
+    const p = document.createElement("div");
+    p.textContent = snap.val().from + ": " + snap.val().text;
+    box.appendChild(p);
+  });
+}
+
+function sendMessage() {
+  if (!chatId) return;
+  const text = msgInput.value.trim();
+  if (!text) return;
+  db.ref(`chats/${chatId}/messages`).push({
+    from: userId,
+    text
+  });
+  msgInput.value = "";
+}
+
+function endChat() {
+  if (!chatId) return;
+  db.ref(`chats/${chatId}`).remove();
+  chatId = null;
+  document.getElementById("chatView").classList.add("hidden");
 }
 </script>
 
