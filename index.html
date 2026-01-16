@@ -23,13 +23,45 @@
     .subtitle {
       text-align: center;
       color: #b5b5b5;
-      margin-bottom: 50px;
+      margin-bottom: 40px;
       font-size: 1.1rem;
     }
 
-    .cards {
-      max-width: 900px;
+    .roles {
+      max-width: 700px;
       margin: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+
+    .role-card {
+      background: #12172a;
+      border-radius: 10px;
+      padding: 30px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .role-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .role-card h3 {
+      margin: 0 0 10px;
+      font-size: 1.4rem;
+    }
+
+    .role-card p {
+      color: #b5b5b5;
+      font-size: 0.95rem;
+    }
+
+    .cards {
+      display: none;
+      max-width: 900px;
+      margin: 60px auto 0;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 24px;
@@ -44,7 +76,7 @@
 
     .card h3 {
       margin: 0 0 8px;
-      font-size: 1.3rem;
+      font-size: 1.2rem;
     }
 
     .card p {
@@ -76,12 +108,23 @@
 <body>
 
   <h1>AstroLab</h1>
-  <p class="subtitle">
-    Founding astrologers who have signed up for private consultations.
-  </p>
+  <p class="subtitle">Choose how you want to use AstroLab</p>
 
-  <section class="cards">
+  <!-- Role Selection -->
+  <section class="roles" id="roleSelect">
+    <div class="role-card" onclick="selectRole('client')">
+      <h3>I’m a Client</h3>
+      <p>I want astrology guidance through private consultations.</p>
+    </div>
 
+    <div class="role-card" onclick="selectRole('astrologer')">
+      <h3>I’m an Astrologer</h3>
+      <p>I provide astrology consultations on AstroLab.</p>
+    </div>
+  </section>
+
+  <!-- Astrologer List (Visible to Clients) -->
+  <section class="cards" id="astrologers">
     <div class="card">
       <h3>Astrologer A</h3>
       <p>Specialty: Love & Relationships</p>
@@ -97,12 +140,27 @@
       <p class="price">₹25 / minute</p>
       <p class="status">● Available</p>
     </div>
-
   </section>
 
   <p class="footer-note">
     Astrology is a guidance-based service. Results may vary.
   </p>
+
+  <script>
+    function selectRole(role) {
+      document.getElementById("roleSelect").style.display = "none";
+
+      if (role === "client") {
+        document.getElementById("astrologers").style.display = "grid";
+      } else {
+        alert(
+          "You are logged in as an Astrologer.\n\n" +
+          "Your profile is visible to clients.\n" +
+          "Astrologer dashboard will be added later."
+        );
+      }
+    }
+  </script>
 
 </body>
 </html>
