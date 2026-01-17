@@ -2,314 +2,273 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>AstroLab</title>
+<title>AstroLab – Live Astrology Chat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- ================= FIREBASE SDK ================= -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
-/* ================= BASIC RESET ================= */
-* { box-sizing: border-box; }
-
-/* ================= LAYOUT ================= */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: #f4f6f8;
-  display: flex;
-  height: 100vh;
-}
-
-.sidebar {
-  width: 240px;
   background: #ffffff;
-  border-right: 1px solid #ddd;
-  padding: 15px;
+  color: #222;
 }
-
-.sidebar h2 {
-  margin: 0 0 20px 0;
+header {
+  padding: 14px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-
-.sidebar button {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
+button {
+  padding: 8px 12px;
   cursor: pointer;
 }
-
-.main {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
+.container {
+  display: flex;
+  height: calc(100vh - 60px);
 }
-
-/* ================= CARDS ================= */
-.card {
-  background: #ffffff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 10px;
-}
-
-/* ================= CHAT ================= */
-.chat-box {
-  height: 320px;
-  border: 1px solid #ddd;
-  background: #fff;
+.sidebar {
+  width: 260px;
+  border-right: 1px solid #ddd;
   padding: 10px;
   overflow-y: auto;
+}
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.card {
+  border: 1px solid #ddd;
+  padding: 10px;
   margin-bottom: 10px;
 }
-
-/* ================= UTIL ================= */
-.hidden { display: none; }
-
-input, button {
-  padding: 8px;
-  margin-top: 5px;
+.online {
+  color: green;
+}
+.offline {
+  color: gray;
+}
+.chat {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  border-bottom: 1px solid #ddd;
+}
+.chat input {
+  width: 80%;
+}
+.hidden {
+  display: none;
+}
+.queue-item {
+  border-bottom: 1px solid #eee;
+  padding: 6px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- ================= SIDEBAR ================= -->
-<div class="sidebar">
-  <h2>AstroLab</h2>
-  <button onclick="switchRole('client')">Client</button>
-  <button onclick="switchRole('astrologer')">Astrologer</button>
-</div>
-
-<!-- ================= MAIN ================= -->
-<div class="main">
-
-  <!-- CLIENT VIEW -->
-  <div id="clientView">
-    <h3>Online Astrologers</h3>
-    <div id="astrologerList"></div>
+<header>
+  <div><strong>AstroLab</strong></div>
+  <div>
+    Role:
+    <select id="roleSelect">
+      <option value="client">Client</option>
+      <option value="astrologer">Astrologer</option>
+    </select>
+    <button id="onlineBtn" class="hidden">Go Online</button>
   </div>
+</header>
 
-  <!-- ASTROLOGER VIEW -->
-  <div id="astrologerView" class="hidden">
-    <h3>Astrologer Dashboard</h3>
-    <label>
-      <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
-    </label>
-    <h4>Chat Queue</h4>
+<div class="container">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h3>Astrologers Online</h3>
+    <div id="astrologerList"></div>
+
+    <h3 class="hidden" id="queueTitle">Chat Requests</h3>
     <div id="queueList"></div>
   </div>
 
-  <!-- CHAT VIEW -->
-  <div id="chatView" class="hidden">
-    <h3>Live Chat</h3>
-    <div class="chat-box" id="messages"></div>
-    <input id="msgInput" placeholder="Type message..." />
-    <br>
-    <button onclick="sendMessage()">Send</button>
-    <button onclick="exitChat()">Exit Chat</button>
+  <!-- MAIN -->
+  <div class="main">
+
+    <div class="chat" id="chatBox"></div>
+
+    <div style="padding:10px;">
+      <input type="text" id="msgInput" placeholder="Type message..." />
+      <button id="sendBtn">Send</button>
+      <button id="exitBtn" class="hidden">Exit Chat</button>
+    </div>
+
   </div>
 
 </div>
 
 <script>
-/* =====================================================
-   🔥 FIREBASE CONFIG — FULL & EXPLICIT
-   ===================================================== */
+/* ================= FIREBASE CONFIG ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyALzPqt1EdWG9cWeFf2gZP8Z470D0puPds",
   authDomain: "astrolab-b8956.firebaseapp.com",
   databaseURL: "https://astrolab-b8956-default-rtdb.firebaseio.com",
-  projectId: "astrolab-b8956",
-  storageBucket: "astrolab-b8956.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:000000000000"
+  projectId: "astrolab-b8956"
 };
-
-/* ================= INIT ================= */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* =====================================================
-   🧠 STATE
-   ===================================================== */
-const userId = "user_" + Math.random().toString(36).slice(2);
+/* ================= STATE ================= */
+const uid = "user_" + Math.random().toString(36).substr(2, 9);
 let role = "client";
-let chatId = null;
-let partnerId = null;
-let chatRef = null;
+let online = false;
+let activeChatId = null;
 
-/* =====================================================
-   🔁 ROLE SWITCH
-   ===================================================== */
-function switchRole(r) {
-  role = r;
-  clientView.classList.toggle("hidden", r !== "client");
-  astrologerView.classList.toggle("hidden", r !== "astrologer");
-  chatView.classList.add("hidden");
-}
+/* ================= ELEMENTS ================= */
+const roleSelect = document.getElementById("roleSelect");
+const onlineBtn = document.getElementById("onlineBtn");
+const astrologerList = document.getElementById("astrologerList");
+const queueList = document.getElementById("queueList");
+const queueTitle = document.getElementById("queueTitle");
+const chatBox = document.getElementById("chatBox");
+const msgInput = document.getElementById("msgInput");
+const sendBtn = document.getElementById("sendBtn");
+const exitBtn = document.getElementById("exitBtn");
 
-/* =====================================================
-   🌐 PRESENCE (ASTROLOGER)
-   ===================================================== */
-function toggleOnline(isOnline) {
-  const ref = db.ref("presence/" + userId);
-  if (isOnline) {
-    ref.set({ role: "astrologer", busy: false });
-    ref.onDisconnect().remove();
+/* ================= ROLE CHANGE ================= */
+roleSelect.onchange = () => {
+  role = roleSelect.value;
+  cleanup();
+  if (role === "astrologer") {
+    onlineBtn.classList.remove("hidden");
+    queueTitle.classList.remove("hidden");
   } else {
-    ref.remove();
+    onlineBtn.classList.add("hidden");
+    queueTitle.classList.add("hidden");
   }
-}
+};
 
-/* =====================================================
-   👁 SHOW ONLINE ASTROLOGERS (CLIENT)
-   ===================================================== */
-db.ref("presence").on("value", snap => {
+/* ================= ONLINE TOGGLE ================= */
+onlineBtn.onclick = () => {
+  online = !online;
+  onlineBtn.innerText = online ? "Go Offline" : "Go Online";
+  db.ref("astrologers/" + uid).set({
+    online,
+    busy: false
+  });
+};
+
+/* ================= LIST ASTROLOGERS ================= */
+db.ref("astrologers").on("value", snap => {
   astrologerList.innerHTML = "";
-  snap.forEach(child => {
-    const data = child.val();
-    if (data.role === "astrologer") {
+  snap.forEach(a => {
+    const data = a.val();
+    if (data.online && !data.busy) {
       const div = document.createElement("div");
       div.className = "card";
       div.innerHTML = `
-        <strong>${child.key}</strong>
-        ${data.busy ? "(Busy)" : "(Online)"}<br>
-        <button onclick="requestChat('${child.key}')" 
-          ${child.key === userId || data.busy ? "disabled" : ""}>
-          Request Chat
-        </button>
+        <div class="online">Astrologer ${a.key}</div>
+        ${role === "client" ? `<button onclick="requestChat('${a.key}')">Request Chat</button>` : ""}
       `;
       astrologerList.appendChild(div);
     }
   });
 });
 
-/* =====================================================
-   📩 CLIENT → REQUEST CHAT
-   ===================================================== */
+/* ================= REQUEST CHAT ================= */
 function requestChat(astrologerId) {
-  if (astrologerId === userId) {
-    alert("You cannot chat with yourself");
-    return;
-  }
-  db.ref("queue/" + astrologerId).push({
-    client: userId,
+  if (role !== "client") return;
+  if (astrologerId === uid) return;
+
+  const reqId = db.ref("queue/" + astrologerId).push().key;
+  db.ref("queue/" + astrologerId + "/" + reqId).set({
+    client: uid,
     time: Date.now()
   });
-  alert("Chat request sent");
 }
 
-/* =====================================================
-   📥 ASTROLOGER QUEUE LISTENER (ALWAYS ON)
-   ===================================================== */
-db.ref("queue/" + userId).on("value", snap => {
+/* ================= QUEUE LISTENER ================= */
+db.ref("queue").on("value", snap => {
+  if (role !== "astrologer") return;
   queueList.innerHTML = "";
-  snap.forEach(child => {
-    const data = child.val();
+  const myQueue = snap.child(uid);
+  if (!myQueue.exists()) return;
+
+  myQueue.forEach(req => {
     const div = document.createElement("div");
-    div.className = "card";
+    div.className = "queue-item";
     div.innerHTML = `
-      Request from ${data.client}<br>
-      <button onclick="acceptChat('${child.key}','${data.client}')">
-        Accept
-      </button>
+      Client ${req.val().client}
+      <button onclick="acceptChat('${req.key}','${req.val().client}')">Accept</button>
     `;
     queueList.appendChild(div);
   });
 });
 
-/* =====================================================
-   ✅ ACCEPT CHAT
-   ===================================================== */
-function acceptChat(queueKey, clientId) {
-  if (chatId) {
-    alert("Already in a chat");
-    return;
-  }
+/* ================= ACCEPT CHAT ================= */
+function acceptChat(reqKey, clientId) {
+  if (activeChatId) return;
 
-  chatId = db.ref().push().key;
-  partnerId = clientId;
-
-  db.ref("presence/" + userId).update({ busy: true });
-  db.ref("queue/" + userId + "/" + queueKey).remove();
-
-  db.ref("currentChat/" + userId).set(chatId);
-  db.ref("currentChat/" + clientId).set(chatId);
+  const chatId = "chat_" + Date.now();
+  activeChatId = chatId;
 
   db.ref("chats/" + chatId).set({
-    astrologer: userId,
+    astrologer: uid,
     client: clientId
   });
+
+  db.ref("astrologers/" + uid + "/busy").set(true);
+  db.ref("queue/" + uid + "/" + reqKey).remove();
+  listenChat(chatId);
 }
 
-/* =====================================================
-   🔔 CHAT ASSIGNMENT (BOTH SIDES)
-   ===================================================== */
-db.ref("currentChat/" + userId).on("value", snap => {
-  if (snap.exists()) {
-    chatId = snap.val();
-    openChat(chatId);
-  }
-});
+/* ================= CHAT ================= */
+function listenChat(chatId) {
+  chatBox.innerHTML = "";
+  exitBtn.classList.remove("hidden");
 
-/* =====================================================
-   💬 OPEN CHAT
-   ===================================================== */
-function openChat(id) {
-  chatView.classList.remove("hidden");
-  messages.innerHTML = "";
-
-  if (chatRef) chatRef.off();
-
-  chatRef = db.ref("messages/" + id);
-  chatRef.on("child_added", snap => {
-    const msg = snap.val();
-    const div = document.createElement("div");
-    div.textContent = msg.from + ": " + msg.text;
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
+  db.ref("messages/" + chatId).on("child_added", snap => {
+    const msg = document.createElement("div");
+    msg.textContent = snap.val().sender + ": " + snap.val().text;
+    chatBox.appendChild(msg);
+    chatBox.scrollTop = chatBox.scrollHeight;
   });
 }
 
-/* =====================================================
-   ✉ SEND MESSAGE
-   ===================================================== */
-function sendMessage() {
-  if (!chatId) return;
-  const text = msgInput.value.trim();
-  if (!text) return;
-
-  db.ref("messages/" + chatId).push({
-    from: userId,
-    text: text,
-    time: Date.now()
+/* ================= SEND MESSAGE ================= */
+sendBtn.onclick = () => {
+  if (!activeChatId || !msgInput.value) return;
+  db.ref("messages/" + activeChatId).push({
+    sender: uid,
+    text: msgInput.value
   });
-
   msgInput.value = "";
-}
+};
 
-/* =====================================================
-   ❌ EXIT CHAT (SYNC BOTH)
-   ===================================================== */
-function exitChat() {
-  if (!chatId) return;
-
-  db.ref("currentChat/" + userId).remove();
-  if (partnerId) db.ref("currentChat/" + partnerId).remove();
-  db.ref("messages/" + chatId).remove();
-  db.ref("chats/" + chatId).remove();
-
-  if (role === "astrologer") {
-    db.ref("presence/" + userId).update({ busy: false });
+/* ================= EXIT CHAT ================= */
+exitBtn.onclick = () => {
+  if (role === "client") {
+    db.ref("chats/" + activeChatId).remove();
+    db.ref("messages/" + activeChatId).remove();
   }
+  if (role === "astrologer") {
+    db.ref("astrologers/" + uid + "/busy").set(false);
+  }
+  activeChatId = null;
+  chatBox.innerHTML = "";
+  exitBtn.classList.add("hidden");
+};
 
-  chatId = null;
-  partnerId = null;
-  chatView.classList.add("hidden");
+/* ================= CLEANUP ================= */
+function cleanup() {
+  db.ref("astrologers/" + uid).remove();
+  activeChatId = null;
+  chatBox.innerHTML = "";
 }
 </script>
 
