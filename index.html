@@ -113,19 +113,18 @@ const userId = "user_" + Math.random().toString(36).slice(2);
 let role = "client";
 let chatId = null;
 let currentPartner = null;
+let chatListener = null;
 
-/* ================= REQUEST NOTIFICATIONS ================= */
-if ("Notification" in window) {
-  Notification.requestPermission();
-}
+/* ================= NOTIFICATIONS ================= */
+if ("Notification" in window) Notification.requestPermission();
 
 /* ================= ROLE SWITCH ================= */
 function switchRole(r) {
   role = r;
-  document.getElementById("clientView").classList.toggle("hidden", r !== "client");
-  document.getElementById("astrologerView").classList.toggle("hidden", r !== "astrologer");
-  document.getElementById("chatView").classList.add("hidden");
-  document.getElementById("exitBtn").style.display = (r === "client" ? "inline-block" : "none");
+  clientView.classList.toggle("hidden", r !== "client");
+  astrologerView.classList.toggle("hidden", r !== "astrologer");
+  chatView.classList.add("hidden");
+  exitBtn.style.display = r === "client" ? "inline-block" : "none";
 }
 
 /* ================= PRESENCE ================= */
@@ -134,7 +133,6 @@ function toggleOnline(isOnline) {
   if (isOnline) {
     ref.set({ role: "astrologer", busy: false });
     ref.onDisconnect().remove();
-    listenQueue();
   } else {
     ref.remove();
   }
@@ -142,77 +140,85 @@ function toggleOnline(isOnline) {
 
 /* ================= SHOW ONLINE ASTROLOGERS ================= */
 db.ref("presence").on("value", snap => {
-  const list = document.getElementById("astrologerList");
-  list.innerHTML = "";
+  astrologerList.innerHTML = "";
   snap.forEach(c => {
     if (c.val().role === "astrologer") {
       const card = document.createElement("div");
       card.className = "card";
       card.innerHTML = `
         <strong>${c.key}</strong> ${c.val().busy ? "(Busy)" : ""}<br>
-        <button onclick="requestChat('${c.key}')" ${c.key===userId ? "disabled" : ""}>Request Chat</button>
-      `;
-      list.appendChild(card);
+        <button ${c.key === userId ? "disabled" : ""} onclick="requestChat('${c.key}')">
+          Request Chat
+        </button>`;
+      astrologerList.appendChild(card);
     }
   });
 });
 
-/* ================= CLIENT CHAT REQUEST ================= */
+/* ================= CLIENT → REQUEST ================= */
 function requestChat(astrologerId) {
-  if (astrologerId === userId) return alert("Cannot request chat to yourself");
-  db.ref(`presence/${astrologerId}`).once("value", snap => {
-    if (!snap.exists() || snap.val().busy) return alert("Astrologer busy/offline");
-    const queueRef = db.ref(`queue/${astrologerId}`).push();
-    queueRef.set({ client: userId });
+  if (astrologerId === userId) return alert("You cannot chat with yourself");
+
+  db.ref("presence/" + astrologerId).once("value", snap => {
+    if (!snap.exists() || snap.val().busy) {
+      alert("Astrologer unavailable");
+      return;
+    }
+    db.ref("queue/" + astrologerId).push({
+      client: userId,
+      time: Date.now()
+    });
     if (Notification.permission === "granted") {
-      new Notification("Chat request sent", { body: `You queued with ${astrologerId}` });
+      new Notification("Chat request sent");
     }
   });
 }
 
-/* ================= ASTROLOGER QUEUE ================= */
-function listenQueue() {
-  db.ref(`queue/${userId}`).on("value", snap => {
-    const box = document.getElementById("requestList");
-    box.innerHTML = "";
-    snap.forEach(r => {
-      const clientId = r.val().client;
-      if (!r.val().chatStarted) {
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `
-          Request from ${clientId}<br>
-          <button onclick="acceptQueue('${r.key}','${clientId}')">Accept</button>
-          <button onclick="rejectQueue('${r.key}')">Reject</button>
-        `;
-        box.appendChild(card);
-        if (Notification.permission === "granted") {
-          new Notification("New chat queued", { body: `Client ${clientId} wants to chat` });
-        }
-      }
-    });
+/* ================= ASTROLOGER QUEUE (ALWAYS LISTENING) ================= */
+db.ref("queue/" + userId).on("value", snap => {
+  requestList.innerHTML = "";
+  snap.forEach(r => {
+    if (!r.val().chatStarted) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        Request from ${r.val().client}<br>
+        <button onclick="acceptQueue('${r.key}','${r.val().client}')">Accept</button>
+        <button onclick="rejectQueue('${r.key}')">Reject</button>`;
+      requestList.appendChild(card);
+    }
   });
-}
+});
 
-/* ================= ACCEPT / REJECT QUEUE ================= */
+/* ================= ACCEPT ================= */
 function acceptQueue(queueKey, clientId) {
-  if (chatId) return alert("Already in a chat");
+  if (chatId) return alert("Finish current chat first");
+
   chatId = db.ref().push().key;
   currentPartner = clientId;
-  // Mark astrologer as busy
-  db.ref(`presence/${userId}`).update({ busy: true });
-  db.ref(`chats/${chatId}`).set({ participants: { [userId]: true, [clientId]: true }, messages: {} });
-  db.ref(`queue/${userId}/${queueKey}`).update({ chatStarted: true });
-  db.ref(`currentChat/${clientId}`).set(chatId);
-  openChat(chatId);
+
+  db.ref("presence/" + userId).update({ busy: true });
+
+  db.ref("chats/" + chatId).set({
+    active: true,
+    participants: {
+      [userId]: true,
+      [clientId]: true
+    }
+  });
+
+  db.ref("queue/" + userId + "/" + queueKey).remove();
+  db.ref("currentChat/" + userId).set(chatId);
+  db.ref("currentChat/" + clientId).set(chatId);
 }
 
+/* ================= REJECT ================= */
 function rejectQueue(queueKey) {
-  db.ref(`queue/${userId}/${queueKey}`).remove();
+  db.ref("queue/" + userId + "/" + queueKey).remove();
 }
 
-/* ================= CLIENT LISTEN FOR ASSIGNMENT ================= */
-db.ref(`currentChat/${userId}`).on("value", snap => {
+/* ================= BOTH SIDES CHAT OPEN ================= */
+db.ref("currentChat/" + userId).on("value", snap => {
   if (snap.exists()) {
     chatId = snap.val();
     openChat(chatId);
@@ -221,14 +227,17 @@ db.ref(`currentChat/${userId}`).on("value", snap => {
 
 /* ================= CHAT ================= */
 function openChat(id) {
-  document.getElementById("chatView").classList.remove("hidden");
-  const box = document.getElementById("messages");
-  box.innerHTML = "";
-  db.ref(`chats/${id}/messages`).on("child_added", snap => {
-    const p = document.createElement("div");
-    p.textContent = snap.val().from + ": " + snap.val().text;
-    box.appendChild(p);
-    box.scrollTop = box.scrollHeight;
+  chatView.classList.remove("hidden");
+  messages.innerHTML = "";
+
+  if (chatListener) chatListener.off();
+
+  chatListener = db.ref("chats/" + id + "/messages");
+  chatListener.on("child_added", snap => {
+    const div = document.createElement("div");
+    div.textContent = snap.val().from + ": " + snap.val().text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
   });
 }
 
@@ -236,22 +245,28 @@ function sendMessage() {
   if (!chatId) return;
   const text = msgInput.value.trim();
   if (!text) return;
-  db.ref(`chats/${chatId}/messages`).push({ from: userId, text });
+  db.ref("chats/" + chatId + "/messages").push({
+    from: userId,
+    text
+  });
   msgInput.value = "";
 }
 
 /* ================= EXIT CHAT ================= */
 function exitChat() {
   if (!chatId) return;
-  db.ref(`chats/${chatId}`).remove();
-  if(role === "client") db.ref(`currentChat/${userId}`).remove();
-  if(role === "astrologer" && currentPartner) db.ref(`currentChat/${currentPartner}`).remove();
-  if(role === "astrologer") db.ref(`presence/${userId}`).update({ busy: false });
+
+  db.ref("chats/" + chatId).remove();
+  db.ref("currentChat/" + userId).remove();
+  if (currentPartner) db.ref("currentChat/" + currentPartner).remove();
+  if (role === "astrologer") db.ref("presence/" + userId).update({ busy: false });
+
   chatId = null;
   currentPartner = null;
-  document.getElementById("chatView").classList.add("hidden");
+  chatView.classList.add("hidden");
 }
 </script>
+
 
 </body>
 </html>
