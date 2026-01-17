@@ -5,8 +5,9 @@
 <title>AstroLab</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- ================= FIREBASE SDK ================= -->
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
@@ -18,39 +19,19 @@ body {
   display: flex;
   height: 100vh;
 }
-.sidebar {
-  width: 240px;
-  background: #fff;
-  border-right: 1px solid #ddd;
-  padding: 15px;
-}
-.main {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-}
-.card {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 10px;
-}
-.chat-box {
-  height: 320px;
-  border: 1px solid #ddd;
-  background: #fff;
-  padding: 10px;
-  overflow-y: auto;
-  margin-bottom: 10px;
-}
+.sidebar { width: 240px; background: #fff; border-right: 1px solid #ddd; padding: 15px; }
+.main { flex: 1; padding: 20px; overflow-y: auto; }
+.card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 10px; }
+.chat-box { height: 320px; border: 1px solid #ddd; background: #fff; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
 .hidden { display: none; }
-input, button { padding: 8px; margin-top: 5px; }
+input, button, textarea { padding: 8px; margin-top: 5px; width: 100%; }
+#error { color: red; }
 </style>
 </head>
 
 <body>
 
+<!-- SIDEBAR -->
 <div class="sidebar">
   <h2>AstroLab</h2>
   <button onclick="switchRole('client')">Client</button>
@@ -59,11 +40,35 @@ input, button { padding: 8px; margin-top: 5px; }
 
 <div class="main">
 
-  <div id="clientView">
+  <!-- AUTH -->
+  <div id="authCard" class="card">
+    <h3>Login / Signup</h3>
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <input id="username" placeholder="Username (unique)">
+    <button onclick="signup()">Signup</button>
+    <button onclick="login()">Login</button>
+    <button onclick="googleLogin()">Sign in with Google</button>
+    <p id="error"></p>
+  </div>
+
+  <!-- PROFILE SETTINGS -->
+  <div id="profileCard" class="card hidden">
+    <h3>Profile Settings</h3>
+    <input id="p_username" placeholder="Username">
+    <input id="p_speciality" placeholder="Speciality">
+    <textarea id="p_desc" placeholder="Description"></textarea>
+    <button onclick="saveProfile()">Save</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <!-- CLIENT VIEW -->
+  <div id="clientView" class="hidden">
     <h3>Online Astrologers</h3>
     <div id="astrologerList"></div>
   </div>
 
+  <!-- ASTROLOGER VIEW -->
   <div id="astrologerView" class="hidden">
     <h3>Astrologer Dashboard</h3>
     <label>
@@ -73,6 +78,7 @@ input, button { padding: 8px; margin-top: 5px; }
     <div id="queueList"></div>
   </div>
 
+  <!-- CHAT VIEW -->
   <div id="chatView" class="hidden">
     <h3>Live Chat</h3>
     <div class="chat-box" id="messages"></div>
@@ -95,151 +101,211 @@ const firebaseConfig = {
   messagingSenderId: "000000000000",
   appId: "1:000000000000:web:000000000000"
 };
-
 firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
 const db = firebase.database();
 
 /* ================= STATE ================= */
-const userId = "user_" + Math.random().toString(36).slice(2);
+let userId = null;
 let role = "client";
 let chatId = null;
 let partnerId = null;
 let chatRef = null;
 let queueRef = null;
 
+/* ================= AUTH STATE ================= */
+auth.onAuthStateChanged(user => {
+  if (user) {
+    userId = user.uid;
+    authCard.classList.add("hidden");
+    profileCard.classList.remove("hidden");
+    clientView.classList.remove("hidden");
+    loadProfile();
+  } else {
+    userId = null;
+    authCard.classList.remove("hidden");
+    profileCard.classList.add("hidden");
+    clientView.classList.add("hidden");
+    astrologerView.classList.add("hidden");
+    chatView.classList.add("hidden");
+  }
+});
+
+/* ================= ERROR ================= */
+function showError(msg) {
+  error.textContent = msg;
+}
+
+/* ================= SIGNUP ================= */
+function signup() {
+  const e = email.value;
+  const p = password.value;
+  const u = username.value.trim().toLowerCase();
+  if (!u) return showError("Username required");
+
+  // Ensure username is unique
+  db.ref("presence").once("value").then(snap => {
+    let taken = false;
+    snap.forEach(c => { if(c.val().username === u) taken = true; });
+    if (taken) return showError("Username already in use");
+
+    auth.createUserWithEmailAndPassword(e,p)
+      .then(res => {
+        userId = res.user.uid;
+        db.ref("presence/"+userId).set({ username: u, speciality:"", description:"", role:"user", busy:false });
+      })
+      .catch(err=>showError(err.message));
+  });
+}
+
+/* ================= LOGIN ================= */
+function login() {
+  auth.signInWithEmailAndPassword(email.value,password.value)
+    .catch(err=>showError(err.message));
+}
+
+/* ================= GOOGLE LOGIN ================= */
+function googleLogin() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).then(res=>{
+    userId = res.user.uid;
+    db.ref("presence/"+userId).once("value").then(snap=>{
+      if(!snap.exists()) db.ref("presence/"+userId).set({ username:"user_"+userId.slice(0,6), speciality:"", description:"", role:"user", busy:false });
+    });
+  }).catch(err=>showError(err.message));
+}
+
+/* ================= LOAD PROFILE ================= */
+function loadProfile() {
+  db.ref("presence/"+userId).once("value").then(snap=>{
+    const d = snap.val();
+    if(!d) return;
+    p_username.value=d.username||"";
+    p_speciality.value=d.speciality||"";
+    p_desc.value=d.description||"";
+  });
+}
+
+/* ================= SAVE PROFILE ================= */
+function saveProfile() {
+  const uname = p_username.value.trim().toLowerCase();
+  if(!uname) return showError("Username required");
+
+  // Check uniqueness
+  db.ref("presence").once("value").then(snap=>{
+    let taken=false;
+    snap.forEach(c=>{ if(c.key!==userId && c.val().username===uname) taken=true; });
+    if(taken) return showError("Username already in use");
+
+    db.ref("presence/"+userId).update({ username:uname, speciality:p_speciality.value, description:p_desc.value });
+    alert("Profile saved");
+  });
+}
+
+/* ================= LOGOUT ================= */
+function logout(){ auth.signOut(); }
+
 /* ================= ROLE SWITCH ================= */
-function switchRole(r) {
+function switchRole(r){
   role = r;
-  clientView.classList.toggle("hidden", r !== "client");
-  astrologerView.classList.toggle("hidden", r !== "astrologer");
+  clientView.classList.toggle("hidden", r!=="client");
+  astrologerView.classList.toggle("hidden", r!=="astrologer");
   chatView.classList.add("hidden");
 }
 
 /* ================= ASTROLOGER ONLINE ================= */
-function toggleOnline(isOnline) {
-  const ref = db.ref("presence/" + userId);
-
-  if (isOnline) {
-    ref.set({ role: "astrologer", busy: false });
-    ref.onDisconnect().remove();
-    startQueueListener(); // 🔥 FIX
+function toggleOnline(isOnline){
+  const ref=db.ref("presence/"+userId);
+  if(isOnline){
+    ref.update({ role:"astrologer", busy:false });
+    ref.onDisconnect().update({ busy:false });
+    startQueueListener();
   } else {
-    ref.remove();
     stopQueueListener();
+    ref.update({ role:"user", busy:false });
   }
 }
 
-/* ================= QUEUE LISTENER (FIXED) ================= */
-function startQueueListener() {
-  queueList.innerHTML = "";
-  queueRef = db.ref("queue/" + userId);
-
+/* ================= QUEUE LISTENER ================= */
+function startQueueListener(){
+  queueList.innerHTML="";
+  queueRef = db.ref("requests/"+userId);
   queueRef.off();
-  queueRef.on("child_added", snap => {
+  queueRef.on("child_added", snap=>{
     const data = snap.val();
     const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
-      Request from ${data.client}<br>
-      <button onclick="acceptChat('${snap.key}','${data.client}')">
-        Accept
-      </button>
-    `;
+    div.className="card";
+    div.innerHTML=`Request from ${data.client}<br><button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>`;
     queueList.appendChild(div);
   });
 }
-
-function stopQueueListener() {
-  if (queueRef) queueRef.off();
-  queueList.innerHTML = "";
-}
+function stopQueueListener(){ if(queueRef) queueRef.off(); queueList.innerHTML=""; }
 
 /* ================= CLIENT VIEW ================= */
-db.ref("presence").on("value", snap => {
-  astrologerList.innerHTML = "";
-  snap.forEach(child => {
+db.ref("presence").on("value", snap=>{
+  astrologerList.innerHTML="";
+  snap.forEach(child=>{
     const data = child.val();
-    if (data.role === "astrologer") {
-      const div = document.createElement("div");
-      div.className = "card";
-      div.innerHTML = `
-        <strong>${child.key}</strong>
-        ${data.busy ? "(Busy)" : "(Online)"}<br>
-        <button onclick="requestChat('${child.key}')" 
-          ${data.busy ? "disabled" : ""}>
-          Request Chat
-        </button>
-      `;
+    if(data.role==="astrologer"){
+      const div=document.createElement("div");
+      div.className="card";
+      div.innerHTML=`<strong>${data.username||child.key}</strong> ${data.busy?"(Busy)":"(Online)"}<br>
+      <button onclick="requestChat('${child.key}')" ${data.busy?"disabled":""}>Request Chat</button>`;
       astrologerList.appendChild(div);
     }
   });
 });
 
 /* ================= SEND REQUEST ================= */
-function requestChat(astrologerId) {
-  db.ref("queue/" + astrologerId).push({
-    client: userId,
-    time: Date.now()
-  });
+function requestChat(astrologerId){
+  db.ref("requests/"+astrologerId).push({ client:userId, time:Date.now() });
   alert("Chat request sent");
 }
 
 /* ================= ACCEPT CHAT ================= */
-function acceptChat(queueKey, clientId) {
-  chatId = db.ref().push().key;
-  partnerId = clientId;
-
-  db.ref("presence/" + userId).update({ busy: true });
-  db.ref("queue/" + userId + "/" + queueKey).remove();
-
-  db.ref("currentChat/" + userId).set(chatId);
-  db.ref("currentChat/" + clientId).set(chatId);
+function acceptChat(queueKey, clientId){
+  chatId=db.ref().push().key;
+  partnerId=clientId;
+  db.ref("presence/"+userId).update({ busy:true });
+  db.ref("requests/"+userId+"/"+queueKey).remove();
+  db.ref("currentChat/"+userId).set(chatId);
+  db.ref("currentChat/"+clientId).set(chatId);
 }
 
 /* ================= CHAT ASSIGN ================= */
-db.ref("currentChat/" + userId).on("value", snap => {
-  if (snap.exists()) openChat(snap.val());
-});
+db.ref("currentChat/"+userId).on("value", snap=>{ if(snap.exists()) openChat(snap.val()); });
 
 /* ================= OPEN CHAT ================= */
-function openChat(id) {
+function openChat(id){
   chatView.classList.remove("hidden");
-  messages.innerHTML = "";
-  chatRef = db.ref("messages/" + id);
-
+  messages.innerHTML="";
+  chatRef=db.ref("chats/"+id+"/messages");
   chatRef.off();
-  chatRef.on("child_added", snap => {
+  chatRef.on("child_added", snap=>{
     const msg = snap.val();
-    const div = document.createElement("div");
-    div.textContent = msg.from + ": " + msg.text;
+    const div=document.createElement("div");
+    div.textContent=msg.from+": "+msg.text;
     messages.appendChild(div);
   });
 }
 
 /* ================= SEND MESSAGE ================= */
-function sendMessage() {
-  if (!chatId) return;
-  const text = msgInput.value.trim();
-  if (!text) return;
-
-  db.ref("messages/" + chatId).push({
-    from: userId,
-    text,
-    time: Date.now()
-  });
-  msgInput.value = "";
+function sendMessage(){
+  if(!chatId) return;
+  const text=msgInput.value.trim();
+  if(!text) return;
+  db.ref("chats/"+chatId+"/messages").push({ from:userId, text, time:Date.now() });
+  msgInput.value="";
 }
 
 /* ================= EXIT CHAT ================= */
-function exitChat() {
-  db.ref("currentChat/" + userId).remove();
-  if (partnerId) db.ref("currentChat/" + partnerId).remove();
-  if (role === "astrologer") {
-    db.ref("presence/" + userId).update({ busy: false });
-  }
-  chatId = null;
-  partnerId = null;
+function exitChat(){
+  if(!chatId) return;
+  db.ref("currentChat/"+userId).remove();
+  if(partnerId) db.ref("currentChat/"+partnerId).remove();
+  chatId=null; partnerId=null;
   chatView.classList.add("hidden");
+  db.ref("presence/"+userId).update({ busy:false });
 }
 </script>
 
