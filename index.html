@@ -5,17 +5,57 @@
 <title>AstroLab</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;display:flex;height:100vh}
-.sidebar{width:230px;background:#fff;border-right:1px solid #ddd;padding:15px}
-.sidebar button{width:100%;padding:10px;margin-bottom:10px}
-.main{flex:1;padding:20px;overflow:auto}
-.card{background:#fff;border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px}
-.hidden{display:none}
-.chat-box{height:300px;border:1px solid #ddd;padding:10px;overflow-y:auto;background:#fff}
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  display: flex;
+  height: 100vh;
+}
+.sidebar {
+  width: 230px;
+  background: #ffffff;
+  border-right: 1px solid #ddd;
+  padding: 15px;
+}
+.sidebar h2 {
+  margin-bottom: 20px;
+}
+.sidebar button {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+.main {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+.card {
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 10px;
+}
+.hidden { display: none; }
+.chat-box {
+  height: 300px;
+  border: 1px solid #ddd;
+  padding: 10px;
+  overflow-y: auto;
+  background: #fff;
+}
+input, button {
+  padding: 8px;
+  margin-top: 5px;
+}
 </style>
 </head>
 
@@ -29,167 +69,186 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;display:flex;heigh
 
 <div class="main">
 
-<div id="clientView">
-  <h3>Online Astrologers</h3>
-  <div id="astrologerList"></div>
-</div>
+  <!-- CLIENT VIEW -->
+  <div id="clientView">
+    <h3>Online Astrologers</h3>
+    <div id="astrologerList"></div>
+  </div>
 
-<div id="astrologerView" class="hidden">
-  <h3>Astrologer Dashboard</h3>
-  <label><input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online</label>
-  <h4>Queue</h4>
-  <div id="requestList"></div>
-</div>
+  <!-- ASTROLOGER VIEW -->
+  <div id="astrologerView" class="hidden">
+    <h3>Astrologer Dashboard</h3>
+    <label>
+      <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
+    </label>
+    <h4>Chat Requests Queue</h4>
+    <div id="requestList"></div>
+  </div>
 
-<div id="chatView" class="hidden">
-  <h3>Chat</h3>
-  <div class="chat-box" id="messages"></div>
-  <input id="msgInput" placeholder="Type message">
-  <button onclick="sendMessage()">Send</button>
-  <button id="exitBtn" onclick="exitChat()">Exit</button>
-</div>
+  <!-- CHAT VIEW -->
+  <div id="chatView" class="hidden">
+    <h3>Live Chat</h3>
+    <div class="chat-box" id="messages"></div>
+    <input id="msgInput" placeholder="Type message">
+    <br>
+    <button onclick="sendMessage()">Send</button>
+    <button id="exitBtn" onclick="exitChat()">Exit Chat</button>
+  </div>
 
 </div>
 
 <script>
-/* FIREBASE */
-firebase.initializeApp({
-  apiKey:"AIzaSyALzPqt1EdWG9cWeFf2gZP8Z470D0puPds",
-  databaseURL:"https://astrolab-b8956-default-rtdb.firebaseio.com"
-});
-const db=firebase.database();
+/* ================= FIREBASE CONFIG ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyALzPqt1EdWG9cWeFf2gZP8Z470D0puPds",
+  authDomain: "astrolab-b8956.firebaseapp.com",
+  databaseURL: "https://astrolab-b8956-default-rtdb.firebaseio.com",
+  projectId: "astrolab-b8956"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-/* PERMANENT USER ID */
-let userId=localStorage.getItem("astrolab_uid");
-if(!userId){
-  userId="user_"+Math.random().toString(36).slice(2);
-  localStorage.setItem("astrolab_uid",userId);
+/* ================= STATE ================= */
+const userId = "user_" + Math.random().toString(36).slice(2);
+let role = "client";
+let chatId = null;
+let currentPartner = null;
+
+/* ================= REQUEST NOTIFICATIONS ================= */
+if ("Notification" in window) {
+  Notification.requestPermission();
 }
 
-/* STATE */
-let role="client";
-let chatId=null;
-let partner=null;
-let chatRef=null;
-let queueRef=null;
-
-/* ROLE SWITCH */
-function switchRole(r){
-  role=r;
-  document.getElementById("clientView").classList.toggle("hidden",r!=="client");
-  document.getElementById("astrologerView").classList.toggle("hidden",r!=="astrologer");
-  document.getElementById("exitBtn").style.display=r==="client"?"inline":"none";
+/* ================= ROLE SWITCH ================= */
+function switchRole(r) {
+  role = r;
+  document.getElementById("clientView").classList.toggle("hidden", r !== "client");
+  document.getElementById("astrologerView").classList.toggle("hidden", r !== "astrologer");
+  document.getElementById("chatView").classList.add("hidden");
+  document.getElementById("exitBtn").style.display = (r === "client" ? "inline-block" : "none");
 }
 
-/* PRESENCE */
-function toggleOnline(on){
-  const ref=db.ref("presence/"+userId);
-  if(on){
-    ref.set({role:"astrologer",busy:false});
+/* ================= PRESENCE ================= */
+function toggleOnline(isOnline) {
+  const ref = db.ref("presence/" + userId);
+  if (isOnline) {
+    ref.set({ role: "astrologer", busy: false });
     ref.onDisconnect().remove();
     listenQueue();
-  }else{
+  } else {
     ref.remove();
-    if(queueRef){queueRef.off();queueRef=null;}
   }
 }
 
-/* SHOW ASTROLOGERS */
-db.ref("presence").on("value",snap=>{
-  const box=document.getElementById("astrologerList");
-  box.innerHTML="";
-  snap.forEach(s=>{
-    if(s.val().role==="astrologer"){
-      const c=document.createElement("div");
-      c.className="card";
-      c.innerHTML=`${s.key} ${s.val().busy?"(Busy)":""}<br>
-      <button ${s.val().busy||s.key===userId?"disabled":""}
-      onclick="requestChat('${s.key}')">Request</button>`;
-      box.appendChild(c);
+/* ================= SHOW ONLINE ASTROLOGERS ================= */
+db.ref("presence").on("value", snap => {
+  const list = document.getElementById("astrologerList");
+  list.innerHTML = "";
+  snap.forEach(c => {
+    if (c.val().role === "astrologer") {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <strong>${c.key}</strong> ${c.val().busy ? "(Busy)" : ""}<br>
+        <button onclick="requestChat('${c.key}')" ${c.key===userId ? "disabled" : ""}>Request Chat</button>
+      `;
+      list.appendChild(card);
     }
   });
 });
 
-/* REQUEST CHAT */
-function requestChat(astro){
-  if(astro===userId) return;
-  db.ref(`queue/${astro}/${userId}`).set({client:userId,time:Date.now()});
+/* ================= CLIENT CHAT REQUEST ================= */
+function requestChat(astrologerId) {
+  if (astrologerId === userId) return alert("Cannot request chat to yourself");
+  db.ref(`presence/${astrologerId}`).once("value", snap => {
+    if (!snap.exists() || snap.val().busy) return alert("Astrologer busy/offline");
+    const queueRef = db.ref(`queue/${astrologerId}`).push();
+    queueRef.set({ client: userId });
+    if (Notification.permission === "granted") {
+      new Notification("Chat request sent", { body: `You queued with ${astrologerId}` });
+    }
+  });
 }
 
-/* ASTROLOGER QUEUE */
-function listenQueue(){
-  queueRef=db.ref("queue/"+userId);
-  queueRef.on("value",snap=>{
-    const box=document.getElementById("requestList");
-    box.innerHTML="";
-    snap.forEach(r=>{
-      const c=r.val().client;
-      const d=document.createElement("div");
-      d.className="card";
-      d.innerHTML=`From ${c}<br>
-      <button onclick="accept('${c}')">Accept</button>
-      <button onclick="reject('${c}')">Reject</button>`;
-      box.appendChild(d);
+/* ================= ASTROLOGER QUEUE ================= */
+function listenQueue() {
+  db.ref(`queue/${userId}`).on("value", snap => {
+    const box = document.getElementById("requestList");
+    box.innerHTML = "";
+    snap.forEach(r => {
+      const clientId = r.val().client;
+      if (!r.val().chatStarted) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          Request from ${clientId}<br>
+          <button onclick="acceptQueue('${r.key}','${clientId}')">Accept</button>
+          <button onclick="rejectQueue('${r.key}')">Reject</button>
+        `;
+        box.appendChild(card);
+        if (Notification.permission === "granted") {
+          new Notification("New chat queued", { body: `Client ${clientId} wants to chat` });
+        }
+      }
     });
   });
 }
 
-/* ACCEPT */
-function accept(client){
-  if(chatId) return;
-  chatId=db.ref().push().key;
-  partner=client;
-  db.ref("presence/"+userId).update({busy:true});
-  db.ref("chats/"+chatId).set({active:true});
-  db.ref("currentChat/"+client).set(chatId);
-  db.ref("queue/"+userId+"/"+client).remove();
+/* ================= ACCEPT / REJECT QUEUE ================= */
+function acceptQueue(queueKey, clientId) {
+  if (chatId) return alert("Already in a chat");
+  chatId = db.ref().push().key;
+  currentPartner = clientId;
+  // Mark astrologer as busy
+  db.ref(`presence/${userId}`).update({ busy: true });
+  db.ref(`chats/${chatId}`).set({ participants: { [userId]: true, [clientId]: true }, messages: {} });
+  db.ref(`queue/${userId}/${queueKey}`).update({ chatStarted: true });
+  db.ref(`currentChat/${clientId}`).set(chatId);
   openChat(chatId);
 }
 
-/* REJECT */
-function reject(client){
-  db.ref("queue/"+userId+"/"+client).remove();
+function rejectQueue(queueKey) {
+  db.ref(`queue/${userId}/${queueKey}`).remove();
 }
 
-/* CLIENT LISTEN */
-db.ref("currentChat/"+userId).on("value",s=>{
-  if(s.exists()){
-    chatId=s.val();
+/* ================= CLIENT LISTEN FOR ASSIGNMENT ================= */
+db.ref(`currentChat/${userId}`).on("value", snap => {
+  if (snap.exists()) {
+    chatId = snap.val();
     openChat(chatId);
   }
 });
 
-/* CHAT */
-function openChat(id){
+/* ================= CHAT ================= */
+function openChat(id) {
   document.getElementById("chatView").classList.remove("hidden");
-  const box=document.getElementById("messages");
-  box.innerHTML="";
-  if(chatRef) chatRef.off();
-  chatRef=db.ref("chats/"+id+"/messages");
-  chatRef.on("child_added",s=>{
-    const p=document.createElement("div");
-    p.textContent=s.val().from+": "+s.val().text;
+  const box = document.getElementById("messages");
+  box.innerHTML = "";
+  db.ref(`chats/${id}/messages`).on("child_added", snap => {
+    const p = document.createElement("div");
+    p.textContent = snap.val().from + ": " + snap.val().text;
     box.appendChild(p);
+    box.scrollTop = box.scrollHeight;
   });
 }
 
-/* SEND */
-function sendMessage(){
-  if(!chatId) return;
-  db.ref("chats/"+chatId+"/messages").push({from:userId,text:msgInput.value});
-  msgInput.value="";
+function sendMessage() {
+  if (!chatId) return;
+  const text = msgInput.value.trim();
+  if (!text) return;
+  db.ref(`chats/${chatId}/messages`).push({ from: userId, text });
+  msgInput.value = "";
 }
 
-/* EXIT */
-function exitChat(){
-  if(chatRef) chatRef.off();
-  db.ref("chats/"+chatId).remove();
-  db.ref("currentChat/"+userId).remove();
-  if(role==="astrologer"){
-    db.ref("presence/"+userId).update({busy:false});
-    if(partner) db.ref("currentChat/"+partner).remove();
-  }
-  chatId=null;partner=null;
+/* ================= EXIT CHAT ================= */
+function exitChat() {
+  if (!chatId) return;
+  db.ref(`chats/${chatId}`).remove();
+  if(role === "client") db.ref(`currentChat/${userId}`).remove();
+  if(role === "astrologer" && currentPartner) db.ref(`currentChat/${currentPartner}`).remove();
+  if(role === "astrologer") db.ref(`presence/${userId}`).update({ busy: false });
+  chatId = null;
+  currentPartner = null;
   document.getElementById("chatView").classList.add("hidden");
 }
 </script>
