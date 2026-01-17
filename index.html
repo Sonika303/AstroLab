@@ -11,27 +11,85 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-* { box-sizing: border-box; }
+* { box-sizing: border-box; transition: all 0.3s ease; }
 body {
   margin: 0;
   font-family: Arial, sans-serif;
   background: #f4f6f8;
   display: flex;
   height: 100vh;
+  overflow: hidden;
 }
-.sidebar { width: 240px; background: #fff; border-right: 1px solid #ddd; padding: 15px; }
-.main { flex: 1; padding: 20px; overflow-y: auto; }
-.card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 10px; }
-.chat-box { height: 320px; border: 1px solid #ddd; background: #fff; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
+.sidebar {
+  width: 240px;
+  background: #fff;
+  border-right: 1px solid #ddd;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sidebar button {
+  padding: 10px;
+  border: none;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.sidebar button:hover { background: #0056b3; }
+
+.main { 
+  flex: 1; 
+  padding: 20px; 
+  overflow-y: auto; 
+}
+
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+.card:hover { transform: translateY(-2px); }
+
+.chat-box { 
+  height: 320px; 
+  border: 1px solid #ddd; 
+  background: #fff; 
+  padding: 10px; 
+  overflow-y: auto; 
+  margin-bottom: 10px; 
+  border-radius: 6px;
+}
+
 .hidden { display: none; }
-input, button, textarea { padding: 8px; margin-top: 5px; width: 100%; }
-#error { color: red; }
+input, button, textarea { 
+  padding: 8px; 
+  margin-top: 5px; 
+  width: 100%; 
+  border-radius: 6px; 
+  border: 1px solid #ccc;
+}
+button { cursor: pointer; }
+#error { color: red; font-weight: bold; }
+
+.message {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #e2e6ea;
+  max-width: 70%;
+  word-wrap: break-word;
+}
+.message.self { background: #007bff; color: white; margin-left: auto; }
 </style>
 </head>
 
 <body>
 
-<!-- SIDEBAR -->
 <div class="sidebar">
   <h2>AstroLab</h2>
   <button onclick="switchRole('client')">Client</button>
@@ -112,15 +170,35 @@ let chatId = null;
 let partnerId = null;
 let chatRef = null;
 let queueRef = null;
+let userCache = {}; // cache usernames
+
+/* ================= ELEMENTS ================= */
+const authCard = document.getElementById("authCard");
+const profileCard = document.getElementById("profileCard");
+const clientView = document.getElementById("clientView");
+const astrologerView = document.getElementById("astrologerView");
+const chatView = document.getElementById("chatView");
+const error = document.getElementById("error");
+const astrologerList = document.getElementById("astrologerList");
+const queueList = document.getElementById("queueList");
+const messagesDiv = document.getElementById("messages");
+const msgInput = document.getElementById("msgInput");
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const usernameInput = document.getElementById("username");
+const p_username = document.getElementById("p_username");
+const p_speciality = document.getElementById("p_speciality");
+const p_desc = document.getElementById("p_desc");
 
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
-  if (user) {
+  if(user){
     userId = user.uid;
     authCard.classList.add("hidden");
     profileCard.classList.remove("hidden");
     clientView.classList.remove("hidden");
     loadProfile();
+    loadUserCache();
   } else {
     userId = null;
     authCard.classList.remove("hidden");
@@ -132,40 +210,35 @@ auth.onAuthStateChanged(user => {
 });
 
 /* ================= ERROR ================= */
-function showError(msg) {
-  error.textContent = msg;
-}
+function showError(msg){ error.textContent = msg; }
 
 /* ================= SIGNUP ================= */
-function signup() {
-  const e = email.value;
-  const p = password.value;
-  const u = username.value.trim().toLowerCase();
-  if (!u) return showError("Username required");
+function signup(){
+  const e = emailInput.value;
+  const p = passwordInput.value;
+  const u = usernameInput.value.trim().toLowerCase();
+  if(!u) return showError("Username required");
 
-  // Ensure username is unique
-  db.ref("presence").once("value").then(snap => {
-    let taken = false;
-    snap.forEach(c => { if(c.val().username === u) taken = true; });
-    if (taken) return showError("Username already in use");
+  db.ref("presence").once("value").then(snap=>{
+    let taken=false;
+    snap.forEach(c=>{ if(c.val().username===u) taken=true; });
+    if(taken) return showError("Username already in use");
 
     auth.createUserWithEmailAndPassword(e,p)
-      .then(res => {
+      .then(res=>{
         userId = res.user.uid;
-        db.ref("presence/"+userId).set({ username: u, speciality:"", description:"", role:"user", busy:false });
-      })
-      .catch(err=>showError(err.message));
+        db.ref("presence/"+userId).set({ username:u, speciality:"", description:"", role:"user", busy:false });
+      }).catch(err=>showError(err.message));
   });
 }
 
 /* ================= LOGIN ================= */
-function login() {
-  auth.signInWithEmailAndPassword(email.value,password.value)
-    .catch(err=>showError(err.message));
+function login(){
+  auth.signInWithEmailAndPassword(emailInput.value,passwordInput.value).catch(err=>showError(err.message));
 }
 
 /* ================= GOOGLE LOGIN ================= */
-function googleLogin() {
+function googleLogin(){
   const provider = new firebase.auth.GoogleAuthProvider();
   auth.signInWithPopup(provider).then(res=>{
     userId = res.user.uid;
@@ -176,22 +249,20 @@ function googleLogin() {
 }
 
 /* ================= LOAD PROFILE ================= */
-function loadProfile() {
+function loadProfile(){
   db.ref("presence/"+userId).once("value").then(snap=>{
-    const d = snap.val();
-    if(!d) return;
-    p_username.value=d.username||"";
-    p_speciality.value=d.speciality||"";
-    p_desc.value=d.description||"";
+    const d = snap.val(); if(!d) return;
+    p_username.value = d.username||"";
+    p_speciality.value = d.speciality||"";
+    p_desc.value = d.description||"";
   });
 }
 
 /* ================= SAVE PROFILE ================= */
-function saveProfile() {
+function saveProfile(){
   const uname = p_username.value.trim().toLowerCase();
   if(!uname) return showError("Username required");
 
-  // Check uniqueness
   db.ref("presence").once("value").then(snap=>{
     let taken=false;
     snap.forEach(c=>{ if(c.key!==userId && c.val().username===uname) taken=true; });
@@ -233,9 +304,11 @@ function startQueueListener(){
   queueRef.off();
   queueRef.on("child_added", snap=>{
     const data = snap.val();
+    const clientName = userCache[data.client] || data.client;
     const div = document.createElement("div");
     div.className="card";
-    div.innerHTML=`Request from ${data.client}<br><button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>`;
+    div.innerHTML=`Request from <strong>${clientName}</strong><br>
+      <button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>`;
     queueList.appendChild(div);
   });
 }
@@ -247,12 +320,15 @@ db.ref("presence").on("value", snap=>{
   snap.forEach(child=>{
     const data = child.val();
     if(data.role==="astrologer"){
+      const uname = data.username || child.key;
       const div=document.createElement("div");
       div.className="card";
-      div.innerHTML=`<strong>${data.username||child.key}</strong> ${data.busy?"(Busy)":"(Online)"}<br>
+      div.innerHTML=`<strong>${uname}</strong> ${data.busy?"(Busy)":"(Online)"}<br>
       <button onclick="requestChat('${child.key}')" ${data.busy?"disabled":""}>Request Chat</button>`;
       astrologerList.appendChild(div);
     }
+    // cache usernames
+    userCache[child.key] = data.username;
   });
 });
 
@@ -273,26 +349,32 @@ function acceptChat(queueKey, clientId){
 }
 
 /* ================= CHAT ASSIGN ================= */
-db.ref("currentChat/"+userId).on("value", snap=>{ if(snap.exists()) openChat(snap.val()); });
+db.ref("currentChat/"+userId).on("value", snap=>{
+  if(snap.exists()) openChat(snap.val());
+});
 
 /* ================= OPEN CHAT ================= */
 function openChat(id){
+  chatId=id;
   chatView.classList.remove("hidden");
-  messages.innerHTML="";
+  messagesDiv.innerHTML="";
+  if(chatRef) chatRef.off();
   chatRef=db.ref("chats/"+id+"/messages");
-  chatRef.off();
   chatRef.on("child_added", snap=>{
     const msg = snap.val();
-    const div=document.createElement("div");
-    div.textContent=msg.from+": "+msg.text;
-    messages.appendChild(div);
+    const div = document.createElement("div");
+    const fromName = userCache[msg.from] || msg.from;
+    div.className = "message "+(msg.from===userId?"self":"");
+    div.textContent = fromName+": "+msg.text;
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 }
 
 /* ================= SEND MESSAGE ================= */
 function sendMessage(){
   if(!chatId) return;
-  const text=msgInput.value.trim();
+  const text = msgInput.value.trim();
   if(!text) return;
   db.ref("chats/"+chatId+"/messages").push({ from:userId, text, time:Date.now() });
   msgInput.value="";
@@ -305,7 +387,15 @@ function exitChat(){
   if(partnerId) db.ref("currentChat/"+partnerId).remove();
   chatId=null; partnerId=null;
   chatView.classList.add("hidden");
+  if(chatRef) chatRef.off();
   db.ref("presence/"+userId).update({ busy:false });
+}
+
+/* ================= LOAD USERNAMES CACHE ================= */
+function loadUserCache(){
+  db.ref("presence").once("value").then(snap=>{
+    snap.forEach(child=>{ userCache[child.key] = child.val().username; });
+  });
 }
 </script>
 
