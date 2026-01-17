@@ -9,29 +9,24 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
 <style>
 * { box-sizing: border-box; }
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f4f6f8;
-  display: flex;
-  height: 100vh;
-}
-.sidebar { width: 240px; background: #fff; border-right: 1px solid #ddd; padding: 15px; }
-.main { flex: 1; padding: 20px; overflow-y: auto; }
-.card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 10px; }
-.chat-box { height: 320px; border: 1px solid #ddd; background: #fff; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
-.hidden { display: none; }
-input, button, textarea { padding: 8px; margin-top: 5px; width: 100%; }
-#error { color: red; }
+body { margin: 0; font-family: Arial; background:#f4f6f8; display:flex; height:100vh; }
+.sidebar { width:240px; background:#fff; border-right:1px solid #ddd; padding:15px; }
+.main { flex:1; padding:20px; overflow-y:auto; }
+.card { background:#fff; border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:10px; display:flex; align-items:center; }
+.card img { width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover; }
+.chat-box { height:320px; border:1px solid #ddd; background:#fff; padding:10px; overflow-y:auto; margin-bottom:10px; }
+.hidden { display:none; }
+input, button, textarea { width:100%; padding:8px; margin-top:5px; }
+#error { color:red; }
 </style>
 </head>
 
 <body>
 
-<!-- SIDEBAR -->
 <div class="sidebar">
   <h2>AstroLab</h2>
   <button onclick="switchRole('client')">Client</button>
@@ -53,11 +48,12 @@ input, button, textarea { padding: 8px; margin-top: 5px; width: 100%; }
   </div>
 
   <!-- PROFILE SETTINGS -->
-  <div id="profileCard" class="card hidden">
+  <div id="profileCard" class="card hidden" style="flex-direction:column;">
     <h3>Profile Settings</h3>
     <input id="p_username" placeholder="Username">
     <input id="p_speciality" placeholder="Speciality">
     <textarea id="p_desc" placeholder="Description"></textarea>
+    <input type="file" id="p_photo" accept="image/*">
     <button onclick="saveProfile()">Save</button>
     <button onclick="logout()">Logout</button>
   </div>
@@ -71,9 +67,7 @@ input, button, textarea { padding: 8px; margin-top: 5px; width: 100%; }
   <!-- ASTROLOGER VIEW -->
   <div id="astrologerView" class="hidden">
     <h3>Astrologer Dashboard</h3>
-    <label>
-      <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
-    </label>
+    <label><input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online</label>
     <h4>Chat Queue</h4>
     <div id="queueList"></div>
   </div>
@@ -104,6 +98,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
+const storage = firebase.storage();
 
 /* ================= STATE ================= */
 let userId = null;
@@ -115,14 +110,14 @@ let queueRef = null;
 
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
-  if (user) {
-    userId = user.uid;
+  if(user){
+    userId=user.uid;
     authCard.classList.add("hidden");
     profileCard.classList.remove("hidden");
     clientView.classList.remove("hidden");
     loadProfile();
   } else {
-    userId = null;
+    userId=null;
     authCard.classList.remove("hidden");
     profileCard.classList.add("hidden");
     clientView.classList.add("hidden");
@@ -131,55 +126,43 @@ auth.onAuthStateChanged(user => {
   }
 });
 
-/* ================= ERROR ================= */
-function showError(msg) {
-  error.textContent = msg;
-}
+function showError(msg){ error.textContent=msg; }
 
 /* ================= SIGNUP ================= */
-function signup() {
-  const e = email.value;
-  const p = password.value;
-  const u = username.value.trim().toLowerCase();
-  if (!u) return showError("Username required");
-
-  // Ensure username is unique
-  db.ref("presence").once("value").then(snap => {
-    let taken = false;
-    snap.forEach(c => { if(c.val().username === u) taken = true; });
-    if (taken) return showError("Username already in use");
-
-    auth.createUserWithEmailAndPassword(e,p)
-      .then(res => {
-        userId = res.user.uid;
-        db.ref("presence/"+userId).set({ username: u, speciality:"", description:"", role:"user", busy:false });
-      })
-      .catch(err=>showError(err.message));
+function signup(){
+  const e=email.value, p=password.value, u=username.value.trim().toLowerCase();
+  if(!u) return showError("Username required");
+  db.ref("presence").once("value").then(snap=>{
+    let taken=false;
+    snap.forEach(c=>{ if(c.val().username===u) taken=true; });
+    if(taken) return showError("Username already in use");
+    auth.createUserWithEmailAndPassword(e,p).then(res=>{
+      userId=res.user.uid;
+      db.ref("presence/"+userId).set({ username:u, speciality:"", description:"", photoURL:"", role:"user", busy:false });
+    }).catch(err=>showError(err.message));
   });
 }
 
 /* ================= LOGIN ================= */
-function login() {
-  auth.signInWithEmailAndPassword(email.value,password.value)
-    .catch(err=>showError(err.message));
-}
+function login(){ auth.signInWithEmailAndPassword(email.value,password.value).catch(err=>showError(err.message)); }
 
 /* ================= GOOGLE LOGIN ================= */
-function googleLogin() {
-  const provider = new firebase.auth.GoogleAuthProvider();
+function googleLogin(){
+  const provider=new firebase.auth.GoogleAuthProvider();
   auth.signInWithPopup(provider).then(res=>{
-    userId = res.user.uid;
+    userId=res.user.uid;
+    const name=res.user.displayName || "user_"+userId.slice(0,6);
+    const photo=res.user.photoURL||"";
     db.ref("presence/"+userId).once("value").then(snap=>{
-      if(!snap.exists()) db.ref("presence/"+userId).set({ username:"user_"+userId.slice(0,6), speciality:"", description:"", role:"user", busy:false });
+      if(!snap.exists()) db.ref("presence/"+userId).set({ username:name, speciality:"", description:"", photoURL:photo, role:"user", busy:false });
     });
   }).catch(err=>showError(err.message));
 }
 
 /* ================= LOAD PROFILE ================= */
-function loadProfile() {
+function loadProfile(){
   db.ref("presence/"+userId).once("value").then(snap=>{
-    const d = snap.val();
-    if(!d) return;
+    const d=snap.val(); if(!d) return;
     p_username.value=d.username||"";
     p_speciality.value=d.speciality||"";
     p_desc.value=d.description||"";
@@ -187,19 +170,26 @@ function loadProfile() {
 }
 
 /* ================= SAVE PROFILE ================= */
-function saveProfile() {
-  const uname = p_username.value.trim().toLowerCase();
+function saveProfile(){
+  const uname=p_username.value.trim();
   if(!uname) return showError("Username required");
+  const file=document.getElementById("p_photo").files[0];
 
-  // Check uniqueness
-  db.ref("presence").once("value").then(snap=>{
-    let taken=false;
-    snap.forEach(c=>{ if(c.key!==userId && c.val().username===uname) taken=true; });
-    if(taken) return showError("Username already in use");
+  // Upload photo if exists
+  const uploadPhoto = file ? storage.ref("profilePictures/"+userId+".jpg").put(file).then(snap=>snap.ref.getDownloadURL()) : Promise.resolve(null);
 
-    db.ref("presence/"+userId).update({ username:uname, speciality:p_speciality.value, description:p_desc.value });
-    alert("Profile saved");
-  });
+  uploadPhoto.then(url=>{
+    db.ref("presence").once("value").then(snap=>{
+      let taken=false;
+      snap.forEach(c=>{ if(c.key!==userId && c.val().username===uname) taken=true; });
+      if(taken) return showError("Username already in use");
+
+      const updateData={ username:uname, speciality:p_speciality.value, description:p_desc.value };
+      if(url) updateData.photoURL=url;
+      db.ref("presence/"+userId).update(updateData);
+      alert("Profile saved");
+    });
+  }).catch(err=>showError(err.message));
 }
 
 /* ================= LOGOUT ================= */
@@ -207,7 +197,7 @@ function logout(){ auth.signOut(); }
 
 /* ================= ROLE SWITCH ================= */
 function switchRole(r){
-  role = r;
+  role=r;
   clientView.classList.toggle("hidden", r!=="client");
   astrologerView.classList.toggle("hidden", r!=="astrologer");
   chatView.classList.add("hidden");
@@ -229,27 +219,30 @@ function toggleOnline(isOnline){
 /* ================= QUEUE LISTENER ================= */
 function startQueueListener(){
   queueList.innerHTML="";
-  queueRef = db.ref("requests/"+userId);
+  queueRef=db.ref("requests/"+userId);
   queueRef.off();
-  queueRef.on("child_added", snap=>{
-    const data = snap.val();
-    const div = document.createElement("div");
+  queueRef.on("child_added",snap=>{
+    const data=snap.val();
+    const div=document.createElement("div");
     div.className="card";
-    div.innerHTML=`Request from ${data.client}<br><button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>`;
+    const photo=snap.val().photoURL||"";
+    div.innerHTML=`<img src="${photo}" onerror="this.src='https://via.placeholder.com/40'">Request from ${data.client}<br>
+    <button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>`;
     queueList.appendChild(div);
   });
 }
 function stopQueueListener(){ if(queueRef) queueRef.off(); queueList.innerHTML=""; }
 
 /* ================= CLIENT VIEW ================= */
-db.ref("presence").on("value", snap=>{
+db.ref("presence").on("value",snap=>{
   astrologerList.innerHTML="";
   snap.forEach(child=>{
-    const data = child.val();
+    const data=child.val();
     if(data.role==="astrologer"){
       const div=document.createElement("div");
       div.className="card";
-      div.innerHTML=`<strong>${data.username||child.key}</strong> ${data.busy?"(Busy)":"(Online)"}<br>
+      const photo=data.photoURL||"";
+      div.innerHTML=`<img src="${photo}" onerror="this.src='https://via.placeholder.com/40'"><strong>${data.username||child.key}</strong> ${data.busy?"(Busy)":"(Online)"}<br>
       <button onclick="requestChat('${child.key}')" ${data.busy?"disabled":""}>Request Chat</button>`;
       astrologerList.appendChild(div);
     }
@@ -257,13 +250,10 @@ db.ref("presence").on("value", snap=>{
 });
 
 /* ================= SEND REQUEST ================= */
-function requestChat(astrologerId){
-  db.ref("requests/"+astrologerId).push({ client:userId, time:Date.now() });
-  alert("Chat request sent");
-}
+function requestChat(astrologerId){ db.ref("requests/"+astrologerId).push({ client:userId, time:Date.now() }); alert("Chat request sent"); }
 
 /* ================= ACCEPT CHAT ================= */
-function acceptChat(queueKey, clientId){
+function acceptChat(queueKey,clientId){
   chatId=db.ref().push().key;
   partnerId=clientId;
   db.ref("presence/"+userId).update({ busy:true });
@@ -273,7 +263,7 @@ function acceptChat(queueKey, clientId){
 }
 
 /* ================= CHAT ASSIGN ================= */
-db.ref("currentChat/"+userId).on("value", snap=>{ if(snap.exists()) openChat(snap.val()); });
+db.ref("currentChat/"+userId).on("value",snap=>{ if(snap.exists()) openChat(snap.val()); });
 
 /* ================= OPEN CHAT ================= */
 function openChat(id){
@@ -281,8 +271,8 @@ function openChat(id){
   messages.innerHTML="";
   chatRef=db.ref("chats/"+id+"/messages");
   chatRef.off();
-  chatRef.on("child_added", snap=>{
-    const msg = snap.val();
+  chatRef.on("child_added",snap=>{
+    const msg=snap.val();
     const div=document.createElement("div");
     div.textContent=msg.from+": "+msg.text;
     messages.appendChild(div);
