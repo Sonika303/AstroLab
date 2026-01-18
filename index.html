@@ -11,80 +11,37 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-* { box-sizing: border-box; transition: all 0.3s ease; }
+* { box-sizing:border-box; }
 body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f4f6f8;
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
+  margin:0; font-family:Arial; background:#f4f6f8;
+  display:flex; height:100vh; overflow:hidden;
 }
 .sidebar {
-  width: 240px;
-  background: #fff;
-  border-right: 1px solid #ddd;
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  width:230px; background:#fff; border-right:1px solid #ddd;
+  padding:15px; display:flex; flex-direction:column; gap:10px;
 }
 .sidebar button {
-  padding: 10px;
-  border: none;
-  background: #007bff;
-  color: white;
-  cursor: pointer;
-  border-radius: 6px;
+  padding:10px; border:none; background:#007bff; color:#fff;
+  border-radius:6px; cursor:pointer;
 }
-.sidebar button:hover { background: #0056b3; }
-
-.main { 
-  flex: 1; 
-  padding: 20px; 
-  overflow-y: auto; 
-}
-
+.main { flex:1; padding:20px; overflow-y:auto; }
 .card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  transition: all 0.3s ease;
+  background:#fff; border-radius:8px; padding:15px;
+  margin-bottom:15px; box-shadow:0 2px 6px rgba(0,0,0,.1);
 }
-.card:hover { transform: translateY(-2px); }
-
-.chat-box { 
-  height: 320px; 
-  border: 1px solid #ddd; 
-  background: #fff; 
-  padding: 10px; 
-  overflow-y: auto; 
-  margin-bottom: 10px; 
-  border-radius: 6px;
+.chat-box {
+  height:320px; border:1px solid #ddd; background:#fff;
+  padding:10px; overflow-y:auto; margin-bottom:10px;
 }
-
-.hidden { display: none; }
-input, button, textarea { 
-  padding: 8px; 
-  margin-top: 5px; 
-  width: 100%; 
-  border-radius: 6px; 
-  border: 1px solid #ccc;
-}
-button { cursor: pointer; }
-#error { color: red; font-weight: bold; }
-
 .message {
-  margin-bottom: 8px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: #e2e6ea;
-  max-width: 70%;
-  word-wrap: break-word;
+  margin-bottom:6px; padding:6px 10px; border-radius:6px;
+  background:#e9ecef; max-width:75%;
 }
-.message.self { background: #007bff; color: white; margin-left: auto; }
+.message.self { background:#007bff; color:#fff; margin-left:auto; }
+.message.system { background:#fff3cd; font-style:italic; }
+.hidden { display:none; }
+input, textarea, button { width:100%; padding:8px; margin-top:5px; }
+#timer { font-weight:bold; margin-bottom:10px; }
 </style>
 </head>
 
@@ -98,304 +55,221 @@ button { cursor: pointer; }
 
 <div class="main">
 
-  <!-- AUTH -->
-  <div id="authCard" class="card">
-    <h3>Login / Signup</h3>
-    <input id="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
-    <input id="username" placeholder="Username (unique)">
-    <button onclick="signup()">Signup</button>
-    <button onclick="login()">Login</button>
-    <button onclick="googleLogin()">Sign in with Google</button>
-    <p id="error"></p>
-  </div>
+<!-- AUTH -->
+<div id="authCard" class="card">
+  <h3>Login / Signup</h3>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+  <input id="username" placeholder="Username">
+  <button onclick="signup()">Signup</button>
+  <button onclick="login()">Login</button>
+  <p id="error"></p>
+</div>
 
-  <!-- PROFILE SETTINGS -->
-  <div id="profileCard" class="card hidden">
-    <h3>Profile Settings</h3>
-    <input id="p_username" placeholder="Username">
-    <input id="p_speciality" placeholder="Speciality">
-    <textarea id="p_desc" placeholder="Description"></textarea>
-    <button onclick="saveProfile()">Save</button>
-    <button onclick="logout()">Logout</button>
-  </div>
+<!-- PROFILE -->
+<div id="profileCard" class="card hidden">
+  <h3>Profile</h3>
+  <input id="p_username" placeholder="Username">
+  <button onclick="saveProfile()">Save</button>
+  <button onclick="logout()">Logout</button>
+</div>
 
-  <!-- CLIENT VIEW -->
-  <div id="clientView" class="hidden">
-    <h3>Online Astrologers</h3>
-    <div id="astrologerList"></div>
-  </div>
+<!-- CLIENT -->
+<div id="clientView" class="hidden">
+  <h3>Online Astrologers</h3>
+  <div id="astrologerList"></div>
+</div>
 
-  <!-- ASTROLOGER VIEW -->
-  <div id="astrologerView" class="hidden">
-    <h3>Astrologer Dashboard</h3>
-    <label>
-      <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
-    </label>
-    <h4>Chat Queue</h4>
-    <div id="queueList"></div>
-  </div>
+<!-- ASTROLOGER -->
+<div id="astrologerView" class="hidden">
+  <h3>Astrologer Dashboard</h3>
+  <label><input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online</label>
+  <h4>Queue</h4>
+  <div id="queueList"></div>
+</div>
 
-  <!-- CHAT VIEW -->
-  <div id="chatView" class="hidden">
-    <h3>Live Chat</h3>
-    <div class="chat-box" id="messages"></div>
-    <input id="msgInput" placeholder="Type message..." />
-    <br>
-    <button onclick="sendMessage()">Send</button>
-    <button onclick="exitChat()">Exit Chat</button>
-  </div>
+<!-- CHAT -->
+<div id="chatView" class="hidden">
+  <h3>Live Chat</h3>
+  <div id="timer">00:00</div>
+  <div class="chat-box" id="messages"></div>
+  <input id="msgInput" placeholder="Type message">
+  <button onclick="sendMessage()">Send</button>
+  <button onclick="confirmEndChat()">End Chat</button>
+</div>
 
 </div>
 
 <script>
-/* ================= FIREBASE CONFIG ================= */
-const firebaseConfig = {
+/* FIREBASE */
+firebase.initializeApp({
   apiKey: "AIzaSyALzPqt1EdWG9cWeFf2gZP8Z470D0puPds",
   authDomain: "astrolab-b8956.firebaseapp.com",
   databaseURL: "https://astrolab-b8956-default-rtdb.firebaseio.com",
-  projectId: "astrolab-b8956",
-  storageBucket: "astrolab-b8956.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:000000000000"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.database();
+  projectId: "astrolab-b8956"
+});
+const auth=firebase.auth(), db=firebase.database();
 
-/* ================= STATE ================= */
-let userId = null;
-let role = "client";
-let chatId = null;
-let partnerId = null;
-let chatRef = null;
-let queueRef = null;
-let userCache = {}; // cache usernames
+/* STATE */
+let userId=null, role="client", chatId=null, partnerId=null;
+let chatRef=null, timerInt=null, chatStart=0;
+const $=id=>document.getElementById(id);
 
-/* ================= ELEMENTS ================= */
-const authCard = document.getElementById("authCard");
-const profileCard = document.getElementById("profileCard");
-const clientView = document.getElementById("clientView");
-const astrologerView = document.getElementById("astrologerView");
-const chatView = document.getElementById("chatView");
-const error = document.getElementById("error");
-const astrologerList = document.getElementById("astrologerList");
-const queueList = document.getElementById("queueList");
-const messagesDiv = document.getElementById("messages");
-const msgInput = document.getElementById("msgInput");
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const usernameInput = document.getElementById("username");
-const p_username = document.getElementById("p_username");
-const p_speciality = document.getElementById("p_speciality");
-const p_desc = document.getElementById("p_desc");
-
-/* ================= AUTH STATE ================= */
-auth.onAuthStateChanged(user => {
-  if(user){
-    userId = user.uid;
-    authCard.classList.add("hidden");
-    profileCard.classList.remove("hidden");
-    clientView.classList.remove("hidden");
-    loadProfile();
-    loadUserCache();
-  } else {
-    userId = null;
-    authCard.classList.remove("hidden");
-    profileCard.classList.add("hidden");
-    clientView.classList.add("hidden");
-    astrologerView.classList.add("hidden");
-    chatView.classList.add("hidden");
-  }
+/* AUTH */
+auth.onAuthStateChanged(u=>{
+  if(!u) return;
+  userId=u.uid;
+  $("authCard").classList.add("hidden");
+  $("profileCard").classList.remove("hidden");
+  $("clientView").classList.remove("hidden");
+  loadProfile();
+  listenCurrentChat();
 });
 
-/* ================= ERROR ================= */
-function showError(msg){ error.textContent = msg; }
-
-/* ================= SIGNUP ================= */
+/* SIGNUP / LOGIN */
 function signup(){
-  const e = emailInput.value;
-  const p = passwordInput.value;
-  const u = usernameInput.value.trim().toLowerCase();
-  if(!u) return showError("Username required");
-
-  db.ref("presence").once("value").then(snap=>{
-    let taken=false;
-    snap.forEach(c=>{ if(c.val().username===u) taken=true; });
-    if(taken) return showError("Username already in use");
-
-    auth.createUserWithEmailAndPassword(e,p)
-      .then(res=>{
-        userId = res.user.uid;
-        db.ref("presence/"+userId).set({ username:u, speciality:"", description:"", role:"user", busy:false });
-      }).catch(err=>showError(err.message));
-  });
-}
-
-/* ================= LOGIN ================= */
-function login(){
-  auth.signInWithEmailAndPassword(emailInput.value,passwordInput.value).catch(err=>showError(err.message));
-}
-
-/* ================= GOOGLE LOGIN ================= */
-function googleLogin(){
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).then(res=>{
-    userId = res.user.uid;
-    db.ref("presence/"+userId).once("value").then(snap=>{
-      if(!snap.exists()) db.ref("presence/"+userId).set({ username:"user_"+userId.slice(0,6), speciality:"", description:"", role:"user", busy:false });
+  auth.createUserWithEmailAndPassword(email.value,password.value)
+  .then(r=>{
+    db.ref("presence/"+r.user.uid).set({
+      username:username.value.toLowerCase(),
+      role:"user", busy:false
     });
-  }).catch(err=>showError(err.message));
+  }).catch(e=>error.textContent=e.message);
 }
-
-/* ================= LOAD PROFILE ================= */
-function loadProfile(){
-  db.ref("presence/"+userId).once("value").then(snap=>{
-    const d = snap.val(); if(!d) return;
-    p_username.value = d.username||"";
-    p_speciality.value = d.speciality||"";
-    p_desc.value = d.description||"";
-  });
-}
-
-/* ================= SAVE PROFILE ================= */
-function saveProfile(){
-  const uname = p_username.value.trim().toLowerCase();
-  if(!uname) return showError("Username required");
-
-  db.ref("presence").once("value").then(snap=>{
-    let taken=false;
-    snap.forEach(c=>{ if(c.key!==userId && c.val().username===uname) taken=true; });
-    if(taken) return showError("Username already in use");
-
-    db.ref("presence/"+userId).update({ username:uname, speciality:p_speciality.value, description:p_desc.value });
-    alert("Profile saved");
-  });
-}
-
-/* ================= LOGOUT ================= */
+function login(){ auth.signInWithEmailAndPassword(email.value,password.value); }
 function logout(){ auth.signOut(); }
 
-/* ================= ROLE SWITCH ================= */
-function switchRole(r){
-  role = r;
-  clientView.classList.toggle("hidden", r!=="client");
-  astrologerView.classList.toggle("hidden", r!=="astrologer");
-  chatView.classList.add("hidden");
-}
-
-/* ================= ASTROLOGER ONLINE ================= */
-function toggleOnline(isOnline){
-  const ref=db.ref("presence/"+userId);
-  if(isOnline){
-    ref.update({ role:"astrologer", busy:false });
-    ref.onDisconnect().update({ busy:false });
-    startQueueListener();
-  } else {
-    stopQueueListener();
-    ref.update({ role:"user", busy:false });
-  }
-}
-
-/* ================= QUEUE LISTENER ================= */
-function startQueueListener(){
-  queueList.innerHTML="";
-  queueRef = db.ref("requests/"+userId);
-  queueRef.off();
-  queueRef.on("child_added", snap=>{
-    const data = snap.val();
-    const clientName = userCache[data.client] || data.client;
-    const div = document.createElement("div");
-    div.className="card";
-    div.innerHTML=`Request from <strong>${clientName}</strong><br>
-      <button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>`;
-    queueList.appendChild(div);
+/* PROFILE */
+function loadProfile(){
+  db.ref("presence/"+userId).once("value").then(s=>{
+    p_username.value=s.val().username;
   });
 }
-function stopQueueListener(){ if(queueRef) queueRef.off(); queueList.innerHTML=""; }
+function saveProfile(){
+  db.ref("presence/"+userId).update({ username:p_username.value.toLowerCase() });
+}
 
-/* ================= CLIENT VIEW ================= */
-db.ref("presence").on("value", snap=>{
-  astrologerList.innerHTML="";
-  snap.forEach(child=>{
-    const data = child.val();
-    if(data.role==="astrologer"){
-      const uname = data.username || child.key;
+/* ROLE */
+function switchRole(r){
+  role=r;
+  $("clientView").classList.toggle("hidden",r!=="client");
+  $("astrologerView").classList.toggle("hidden",r!=="astrologer");
+}
+
+/* ASTROLOGER ONLINE */
+function toggleOnline(v){
+  db.ref("presence/"+userId).update({ role:v?"astrologer":"user", busy:false });
+  v?listenQueue():$("queueList").innerHTML="";
+}
+
+/* QUEUE */
+function listenQueue(){
+  const ref=db.ref("requests/"+userId);
+  ref.off();
+  ref.on("child_added",s=>{
+    const d=s.val();
+    const div=document.createElement("div");
+    div.className="card";
+    div.innerHTML=`Request from ${d.client}
+      <button onclick="acceptChat('${s.key}','${d.client}')">Accept</button>`;
+    $("queueList").appendChild(div);
+  });
+}
+
+/* CLIENT VIEW */
+db.ref("presence").on("value",s=>{
+  $("astrologerList").innerHTML="";
+  s.forEach(c=>{
+    const d=c.val();
+    if(d.role==="astrologer"){
       const div=document.createElement("div");
       div.className="card";
-      div.innerHTML=`<strong>${uname}</strong> ${data.busy?"(Busy)":"(Online)"}<br>
-      <button onclick="requestChat('${child.key}')" ${data.busy?"disabled":""}>Request Chat</button>`;
-      astrologerList.appendChild(div);
+      div.innerHTML=`<b>${d.username}</b> ${d.busy?"(Busy)":"(Online)"}<br>
+      <button ${d.busy?"disabled":""} onclick="requestChat('${c.key}')">Request Chat</button>`;
+      $("astrologerList").appendChild(div);
     }
-    // cache usernames
-    userCache[child.key] = data.username;
   });
 });
 
-/* ================= SEND REQUEST ================= */
-function requestChat(astrologerId){
-  db.ref("requests/"+astrologerId).push({ client:userId, time:Date.now() });
-  alert("Chat request sent");
+/* REQUEST */
+function requestChat(aid){
+  db.ref("presence/"+aid).once("value").then(s=>{
+    if(s.val().busy) return alert("Astrologer is busy");
+    db.ref("requests/"+aid).push({ client:userId, time:Date.now() });
+  });
 }
 
-/* ================= ACCEPT CHAT ================= */
-function acceptChat(queueKey, clientId){
+/* ACCEPT */
+function acceptChat(qid,client){
   chatId=db.ref().push().key;
-  partnerId=clientId;
-  db.ref("presence/"+userId).update({ busy:true });
-  db.ref("requests/"+userId+"/"+queueKey).remove();
+  partnerId=client;
+  chatStart=Date.now();
+  db.ref("chats/"+chatId).set({ startedAt:chatStart });
   db.ref("currentChat/"+userId).set(chatId);
-  db.ref("currentChat/"+clientId).set(chatId);
+  db.ref("currentChat/"+client).set(chatId);
+  db.ref("presence/"+userId).update({ busy:true });
+  db.ref("requests/"+userId+"/"+qid).remove();
 }
 
-/* ================= CHAT ASSIGN ================= */
-db.ref("currentChat/"+userId).on("value", snap=>{
-  if(snap.exists()) openChat(snap.val());
-});
+/* CURRENT CHAT */
+function listenCurrentChat(){
+  db.ref("currentChat/"+userId).on("value",s=>{
+    if(!s.exists()) return;
+    openChat(s.val());
+  });
+}
 
-/* ================= OPEN CHAT ================= */
+/* OPEN CHAT */
 function openChat(id){
   chatId=id;
-  chatView.classList.remove("hidden");
-  messagesDiv.innerHTML="";
-  if(chatRef) chatRef.off();
+  $("chatView").classList.remove("hidden");
+  $("messages").innerHTML="";
   chatRef=db.ref("chats/"+id+"/messages");
-  chatRef.on("child_added", snap=>{
-    const msg = snap.val();
-    const div = document.createElement("div");
-    const fromName = userCache[msg.from] || msg.from;
-    div.className = "message "+(msg.from===userId?"self":"");
-    div.textContent = fromName+": "+msg.text;
-    messagesDiv.appendChild(div);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  chatRef.on("child_added",s=>{
+    const m=s.val();
+    const div=document.createElement("div");
+    div.className="message "+(m.system?"system":m.from===userId?"self":"");
+    div.textContent=m.text;
+    $("messages").appendChild(div);
   });
+  startTimer();
 }
 
-/* ================= SEND MESSAGE ================= */
+/* TIMER */
+function startTimer(){
+  clearInterval(timerInt);
+  timerInt=setInterval(()=>{
+    const sec=Math.floor((Date.now()-chatStart)/1000);
+    $("timer").textContent=
+      String(Math.floor(sec/60)).padStart(2,"0")+":"+
+      String(sec%60).padStart(2,"0");
+  },1000);
+}
+
+/* MESSAGE */
 function sendMessage(){
   if(!chatId) return;
-  const text = msgInput.value.trim();
-  if(!text) return;
-  db.ref("chats/"+chatId+"/messages").push({ from:userId, text, time:Date.now() });
+  db.ref("chats/"+chatId+"/messages").push({
+    from:userId, text:msgInput.value, time:Date.now()
+  });
   msgInput.value="";
 }
 
-/* ================= EXIT CHAT ================= */
-function exitChat(){
-  if(!chatId) return;
-  db.ref("currentChat/"+userId).remove();
-  if(partnerId) db.ref("currentChat/"+partnerId).remove();
-  chatId=null; partnerId=null;
-  chatView.classList.add("hidden");
-  if(chatRef) chatRef.off();
-  db.ref("presence/"+userId).update({ busy:false });
+/* END CHAT */
+function confirmEndChat(){
+  if(!confirm("End chat? Credits will be deducted.")) return;
+  endChat(role==="client"?"CLIENT":"ASTROLOGER");
 }
-
-/* ================= LOAD USERNAMES CACHE ================= */
-function loadUserCache(){
-  db.ref("presence").once("value").then(snap=>{
-    snap.forEach(child=>{ userCache[child.key] = child.val().username; });
+function endChat(by){
+  db.ref("chats/"+chatId).update({ ended:true, endedBy:by });
+  db.ref("chats/"+chatId+"/messages").push({
+    system:true,
+    text:`Chat ended by ${by}. Credits have been deducted.`
   });
+  db.ref("currentChat/"+userId).remove();
+  db.ref("presence/"+userId).update({ busy:false });
+  clearInterval(timerInt);
+  $("chatView").classList.add("hidden");
 }
 </script>
 
