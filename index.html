@@ -5,43 +5,23 @@
 <title>AstroLab</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-* { box-sizing:border-box; }
-body {
-  margin:0; font-family:Arial; background:#f4f6f8;
-  display:flex; height:100vh; overflow:hidden;
-}
-.sidebar {
-  width:230px; background:#fff; border-right:1px solid #ddd;
-  padding:15px; display:flex; flex-direction:column; gap:10px;
-}
-.sidebar button {
-  padding:10px; border:none; background:#007bff; color:#fff;
-  border-radius:6px; cursor:pointer;
-}
-.main { flex:1; padding:20px; overflow-y:auto; }
-.card {
-  background:#fff; border-radius:8px; padding:15px;
-  margin-bottom:15px; box-shadow:0 2px 6px rgba(0,0,0,.1);
-}
-.chat-box {
-  height:320px; border:1px solid #ddd; background:#fff;
-  padding:10px; overflow-y:auto; margin-bottom:10px;
-}
-.message {
-  margin-bottom:6px; padding:6px 10px; border-radius:6px;
-  background:#e9ecef; max-width:75%;
-}
-.message.self { background:#007bff; color:#fff; margin-left:auto; }
-.message.system { background:#fff3cd; font-style:italic; }
-.hidden { display:none; }
-input, textarea, button { width:100%; padding:8px; margin-top:5px; }
-#timer { font-weight:bold; margin-bottom:10px; }
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial;background:#f4f6f8;display:flex;height:100vh}
+.sidebar{width:240px;background:#fff;border-right:1px solid #ddd;padding:15px}
+.main{flex:1;padding:20px;overflow-y:auto}
+.card{background:#fff;border-radius:8px;padding:15px;margin-bottom:15px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+.chat-box{height:320px;border:1px solid #ddd;background:#fff;padding:10px;overflow-y:auto}
+.message{margin-bottom:6px;padding:6px 10px;border-radius:6px;background:#e9ecef;max-width:75%}
+.self{background:#007bff;color:#fff;margin-left:auto}
+.system{background:#ffe6e6;color:#b30000;font-style:italic}
+.hidden{display:none}
+#timer{font-weight:bold;margin-bottom:10px}
+.credit-red{color:red;font-weight:bold}
 </style>
 </head>
 
@@ -55,64 +35,60 @@ input, textarea, button { width:100%; padding:8px; margin-top:5px; }
 
 <div class="main">
 
-<!-- AUTH -->
 <div id="authCard" class="card">
-  <h3>Login / Signup</h3>
   <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Password">
   <input id="username" placeholder="Username">
   <button onclick="signup()">Signup</button>
   <button onclick="login()">Login</button>
+  <button onclick="googleLogin()">Google Login</button>
   <p id="error"></p>
 </div>
 
-<!-- PROFILE -->
 <div id="profileCard" class="card hidden">
   <h3>Profile</h3>
   <input id="p_username" placeholder="Username">
+  <input id="p_speciality" placeholder="Speciality">
+  <textarea id="p_desc" placeholder="Description"></textarea>
   <button onclick="saveProfile()">Save</button>
   <button onclick="logout()">Logout</button>
 </div>
 
-<!-- CLIENT -->
 <div id="clientView" class="hidden">
-  <h3>Online Astrologers</h3>
+  <h3>Credits: <span id="clientCredits"></span></h3>
   <div id="astrologerList"></div>
 </div>
 
-<!-- ASTROLOGER -->
 <div id="astrologerView" class="hidden">
   <h3>Astrologer Dashboard</h3>
   <label><input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online</label>
-  <h4>Queue</h4>
+  <p>Today's Login Time: <span id="loginTime">0</span> mins</p>
+  <p>Today's Earnings: ₹<span id="todayEarnings">0</span></p>
   <div id="queueList"></div>
 </div>
 
-<!-- CHAT -->
 <div id="chatView" class="hidden">
-  <h3>Live Chat</h3>
   <div id="timer">00:00</div>
   <div class="chat-box" id="messages"></div>
-  <input id="msgInput" placeholder="Type message">
+  <input id="msgInput">
   <button onclick="sendMessage()">Send</button>
-  <button onclick="confirmEndChat()">End Chat</button>
+  <button onclick="confirmEnd()">End Chat</button>
 </div>
 
 </div>
 
 <script>
-/* FIREBASE */
 firebase.initializeApp({
-  apiKey: "AIzaSyALzPqt1EdWG9cWeFf2gZP8Z470D0puPds",
-  authDomain: "astrolab-b8956.firebaseapp.com",
-  databaseURL: "https://astrolab-b8956-default-rtdb.firebaseio.com",
-  projectId: "astrolab-b8956"
+  apiKey:"AIzaSyALzPqt1EdWG9cWeFf2gZP8Z470D0puPds",
+  authDomain:"astrolab-b8956.firebaseapp.com",
+  databaseURL:"https://astrolab-b8956-default-rtdb.firebaseio.com",
+  projectId:"astrolab-b8956"
 });
-const auth=firebase.auth(), db=firebase.database();
 
-/* STATE */
-let userId=null, role="client", chatId=null, partnerId=null;
-let chatRef=null, timerInt=null, chatStart=0;
+const auth=firebase.auth(),db=firebase.database();
+let userId,role="client",chatId,partnerId,chatStart,timerInt,loginTick;
+
+const today=()=>new Date().toISOString().split("T")[0];
 const $=id=>document.getElementById(id);
 
 /* AUTH */
@@ -121,32 +97,67 @@ auth.onAuthStateChanged(u=>{
   userId=u.uid;
   $("authCard").classList.add("hidden");
   $("profileCard").classList.remove("hidden");
-  $("clientView").classList.remove("hidden");
   loadProfile();
-  listenCurrentChat();
+  loadCredits();
+  listenChat();
 });
 
 /* SIGNUP / LOGIN */
 function signup(){
   auth.createUserWithEmailAndPassword(email.value,password.value)
   .then(r=>{
+    db.ref("users/"+r.user.uid).set({credits:50});
     db.ref("presence/"+r.user.uid).set({
       username:username.value.toLowerCase(),
-      role:"user", busy:false
+      speciality:"",
+      description:"",
+      role:"user",
+      busy:false
     });
   }).catch(e=>error.textContent=e.message);
 }
-function login(){ auth.signInWithEmailAndPassword(email.value,password.value); }
-function logout(){ auth.signOut(); }
+function login(){auth.signInWithEmailAndPassword(email.value,password.value)}
+function googleLogin(){
+  const p=new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(p).then(r=>{
+    db.ref("users/"+r.user.uid).once("value").then(s=>{
+      if(!s.exists()) db.ref("users/"+r.user.uid).set({credits:50});
+    });
+    db.ref("presence/"+r.user.uid).once("value").then(s=>{
+      if(!s.exists()){
+        db.ref("presence/"+r.user.uid).set({
+          username:"user_"+r.user.uid.slice(0,6),
+          speciality:"",
+          description:"",
+          role:"user",
+          busy:false
+        });
+      }
+    });
+  });
+}
 
 /* PROFILE */
 function loadProfile(){
   db.ref("presence/"+userId).once("value").then(s=>{
     p_username.value=s.val().username;
+    p_speciality.value=s.val().speciality;
+    p_desc.value=s.val().description;
   });
 }
 function saveProfile(){
-  db.ref("presence/"+userId).update({ username:p_username.value.toLowerCase() });
+  db.ref("presence/"+userId).update({
+    username:p_username.value,
+    speciality:p_speciality.value,
+    description:p_desc.value
+  });
+}
+
+/* CREDITS */
+function loadCredits(){
+  db.ref("users/"+userId+"/credits").on("value",s=>{
+    $("clientCredits").textContent=s.val();
+  });
 }
 
 /* ROLE */
@@ -158,9 +169,23 @@ function switchRole(r){
 
 /* ASTROLOGER ONLINE */
 function toggleOnline(v){
-  db.ref("presence/"+userId).update({ role:v?"astrologer":"user", busy:false });
-  v?listenQueue():$("queueList").innerHTML="";
+  const ref=db.ref("presence/"+userId);
+  if(v){
+    ref.update({role:"astrologer",busy:false});
+    startLoginTimer();
+    listenQueue();
+  }else{
+    stopLoginTimer();
+    ref.update({role:"user",busy:false});
+  }
 }
+
+/* LOGIN TIMER */
+function startLoginTimer(){
+  const ref=db.ref("astrologerStats/"+userId+"/"+today()+"/loginSeconds");
+  loginTick=setInterval(()=>ref.transaction(v=>(v||0)+1),1000);
+}
+function stopLoginTimer(){clearInterval(loginTick)}
 
 /* QUEUE */
 function listenQueue(){
@@ -171,103 +196,96 @@ function listenQueue(){
     const div=document.createElement("div");
     div.className="card";
     div.innerHTML=`Request from ${d.client}
-      <button onclick="acceptChat('${s.key}','${d.client}')">Accept</button>`;
-    $("queueList").appendChild(div);
+    <button onclick="acceptChat('${s.key}','${d.client}')">Accept</button>`;
+    queueList.appendChild(div);
   });
 }
 
 /* CLIENT VIEW */
 db.ref("presence").on("value",s=>{
-  $("astrologerList").innerHTML="";
+  astrologerList.innerHTML="";
   s.forEach(c=>{
     const d=c.val();
     if(d.role==="astrologer"){
       const div=document.createElement("div");
       div.className="card";
-      div.innerHTML=`<b>${d.username}</b> ${d.busy?"(Busy)":"(Online)"}<br>
-      <button ${d.busy?"disabled":""} onclick="requestChat('${c.key}')">Request Chat</button>`;
-      $("astrologerList").appendChild(div);
+      div.innerHTML=`<b>${d.username}</b> (${d.speciality})<br>
+      ${d.busy?"Busy":"Online"}<br>
+      <button ${d.busy?"disabled":""} onclick="requestChat('${c.key}')">Request</button>`;
+      astrologerList.appendChild(div);
     }
   });
 });
 
 /* REQUEST */
-function requestChat(aid){
-  db.ref("presence/"+aid).once("value").then(s=>{
-    if(s.val().busy) return alert("Astrologer is busy");
-    db.ref("requests/"+aid).push({ client:userId, time:Date.now() });
+function requestChat(id){
+  db.ref("presence/"+id).once("value").then(s=>{
+    if(s.val().busy) return alert("Busy");
+    db.ref("requests/"+id).push({client:userId,time:Date.now()});
   });
 }
 
 /* ACCEPT */
-function acceptChat(qid,client){
+function acceptChat(k,client){
   chatId=db.ref().push().key;
   partnerId=client;
   chatStart=Date.now();
-  db.ref("chats/"+chatId).set({ startedAt:chatStart });
+  db.ref("chats/"+chatId).set({startedAt:chatStart});
   db.ref("currentChat/"+userId).set(chatId);
   db.ref("currentChat/"+client).set(chatId);
-  db.ref("presence/"+userId).update({ busy:true });
-  db.ref("requests/"+userId+"/"+qid).remove();
+  db.ref("presence/"+userId).update({busy:true});
+  db.ref("requests/"+userId+"/"+k).remove();
 }
 
-/* CURRENT CHAT */
-function listenCurrentChat(){
+/* CHAT */
+function listenChat(){
   db.ref("currentChat/"+userId).on("value",s=>{
-    if(!s.exists()) return;
-    openChat(s.val());
+    if(s.exists()) openChat(s.val());
   });
 }
-
-/* OPEN CHAT */
 function openChat(id){
   chatId=id;
   $("chatView").classList.remove("hidden");
-  $("messages").innerHTML="";
-  chatRef=db.ref("chats/"+id+"/messages");
-  chatRef.on("child_added",s=>{
-    const m=s.val();
-    const div=document.createElement("div");
-    div.className="message "+(m.system?"system":m.from===userId?"self":"");
-    div.textContent=m.text;
-    $("messages").appendChild(div);
-  });
+  messages.innerHTML="";
   startTimer();
+  db.ref("chats/"+id+"/messages").on("child_added",s=>{
+    const m=s.val();
+    const d=document.createElement("div");
+    d.className="message "+(m.system?"system":m.from===userId?"self":"");
+    d.textContent=m.text;
+    messages.appendChild(d);
+  });
 }
 
 /* TIMER */
 function startTimer(){
-  clearInterval(timerInt);
   timerInt=setInterval(()=>{
-    const sec=Math.floor((Date.now()-chatStart)/1000);
-    $("timer").textContent=
-      String(Math.floor(sec/60)).padStart(2,"0")+":"+
-      String(sec%60).padStart(2,"0");
+    const s=Math.floor((Date.now()-chatStart)/1000);
+    timer.textContent=`${String(s/60|0).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
   },1000);
 }
 
-/* MESSAGE */
+/* SEND */
 function sendMessage(){
-  if(!chatId) return;
-  db.ref("chats/"+chatId+"/messages").push({
-    from:userId, text:msgInput.value, time:Date.now()
-  });
+  db.ref("chats/"+chatId+"/messages").push({from:userId,text:msgInput.value});
   msgInput.value="";
 }
 
 /* END CHAT */
-function confirmEndChat(){
-  if(!confirm("End chat? Credits will be deducted.")) return;
-  endChat(role==="client"?"CLIENT":"ASTROLOGER");
-}
-function endChat(by){
-  db.ref("chats/"+chatId).update({ ended:true, endedBy:by });
+function confirmEnd(){
+  if(!confirm("End chat? Credits may be deducted")) return;
+  const mins=Math.ceil((Date.now()-chatStart)/60000);
+  if(role==="client"){
+    db.ref("users/"+userId+"/credits").transaction(v=>v-mins);
+    db.ref("astrologerStats/"+partnerId+"/"+today()+"/earnings")
+      .transaction(v=>(v||0)+mins*10);
+  }
   db.ref("chats/"+chatId+"/messages").push({
     system:true,
-    text:`Chat ended by ${by}. Credits have been deducted.`
+    text:`Chat ended by ${role.toUpperCase()} - ${mins} credits deducted`
   });
   db.ref("currentChat/"+userId).remove();
-  db.ref("presence/"+userId).update({ busy:false });
+  db.ref("presence/"+userId).update({busy:false});
   clearInterval(timerInt);
   $("chatView").classList.add("hidden");
 }
