@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
 <style>
 * { box-sizing: border-box; transition: all 0.3s ease; }
@@ -37,6 +38,31 @@ body {
   cursor: pointer;
   border-radius: 6px;
 }
+  .settings {
+  position: fixed;
+  right: -300px;
+  top: 0;
+  width: 300px;
+  height: 100%;
+  background: #ffffff;
+  border-left: 1px solid #ddd;
+  padding: 15px;
+  z-index: 1000;
+  transition: right 0.3s ease;
+  overflow-y: auto;
+}
+.settings.open { right: 0; }
+
+.settings h3 { margin-top: 0; }
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 10px;
+}
+
 .sidebar button:hover { background: #0056b3; }
 
 .main { 
@@ -87,6 +113,19 @@ button { cursor: pointer; }
 .message.self { background: #007bff; color: white; margin-left: auto; }
 </style>
 </head>
+  
+  <div id="settingsPanel" class="settings">
+  <h3>Account Settings</h3>
+
+  <img id="avatarPreview" class="avatar" src="" alt="Avatar">
+  <input type="file" id="avatarInput" accept="image/*">
+
+  <input id="s_name" placeholder="Display Name">
+  <input id="s_speciality" placeholder="Speciality">
+  <textarea id="s_desc" placeholder="Description"></textarea>
+
+  <button onclick="saveSettings()">Save</button>
+</div>
 
 <body>
 
@@ -94,6 +133,7 @@ button { cursor: pointer; }
   <h2>AstroLab</h2>
   <button onclick="switchRole('client')">Client</button>
   <button onclick="switchRole('astrologer')">Astrologer</button>
+  <button onclick="toggleSettings()">Settings</button>
 </div>
 
 <div class="main">
@@ -162,6 +202,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
+const storage = firebase.storage();
 
 /* ================= STATE ================= */
 let userId = null;
@@ -211,6 +252,10 @@ auth.onAuthStateChanged(user => {
 
 /* ================= ERROR ================= */
 function showError(msg){ error.textContent = msg; }
+function toggleSettings(){
+document.getElementById("settingsPanel").classList.toggle("open");
+}
+
 
 /* ================= SIGNUP ================= */
 function signup(){
@@ -252,11 +297,21 @@ function googleLogin(){
 function loadProfile(){
   db.ref("presence/"+userId).once("value").then(snap=>{
     const d = snap.val(); if(!d) return;
-    p_username.value = d.username||"";
-    p_speciality.value = d.speciality||"";
-    p_desc.value = d.description||"";
+
+    p_username.value = d.username || "";
+    p_speciality.value = d.speciality || "";
+    p_desc.value = d.description || "";
+
+    s_name.value = d.username || "";
+    s_speciality.value = d.speciality || "";
+    s_desc.value = d.description || "";
+
+    if(d.avatar){
+      avatarPreview.src = d.avatar;
+    }
   });
 }
+
 
 /* ================= SAVE PROFILE ================= */
 function saveProfile(){
@@ -275,6 +330,33 @@ function saveProfile(){
 
 /* ================= LOGOUT ================= */
 function logout(){ auth.signOut(); }
+function saveSettings(){
+  const file = avatarInput.files[0];
+  const name = s_name.value.trim().toLowerCase();
+  if(!name) return showError("Name required");
+
+  if(file){
+    const ref = storage.ref("avatars/"+userId);
+    ref.put(file).then(()=>{
+      ref.getDownloadURL().then(url=>{
+        updateProfile(name, url);
+      });
+    });
+  } else {
+    updateProfile(name, null);
+  }
+}
+
+function updateProfile(name, avatar){
+  const data = {
+    username: name,
+    speciality: s_speciality.value,
+    description: s_desc.value
+  };
+  if(avatar) data.avatar = avatar;
+  db.ref("presence/"+userId).update(data);
+}
+
 
 /* ================= ROLE SWITCH ================= */
 function switchRole(r){
@@ -323,8 +405,16 @@ db.ref("presence").on("value", snap=>{
       const uname = data.username || child.key;
       const div=document.createElement("div");
       div.className="card";
-      div.innerHTML=`<strong>${uname}</strong> ${data.busy?"(Busy)":"(Online)"}<br>
-      <button onclick="requestChat('${child.key}')" ${data.busy?"disabled":""}>Request Chat</button>`;
+div.innerHTML = `
+  <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
+  <strong>${uname}</strong><br>
+  <small>${data.speciality || "Astrology"}</small>
+  <p>${data.description || ""}</p>
+  <button onclick="requestChat('${child.key}')" ${data.busy?"disabled":""}>
+    ${data.busy ? "Busy" : "Request Chat"}
+  </button>
+`;
+
       astrologerList.appendChild(div);
     }
     // cache usernames
