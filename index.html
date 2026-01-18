@@ -131,6 +131,7 @@ button { cursor: pointer; }
 
 <div class="sidebar">
   <h2>AstroLab</h2>
+  <div id="secretReset" style="height:20px; opacity:0;" onclick="secretTap()"></div>
   <button onclick="switchRole('client')">Client</button>
   <button onclick="switchRole('astrologer')">Astrologer</button>
   <button onclick="toggleSettings()">Settings</button>
@@ -203,6 +204,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 const storage = firebase.storage();
+const connectedRef = db.ref(".info/connected");
 
 /* ================= STATE ================= */
 let userId = null;
@@ -255,6 +257,15 @@ function showError(msg){ error.textContent = msg; }
 function toggleSettings(){
 document.getElementById("settingsPanel").classList.toggle("open");
 }
+  let tapCount = 0;
+function secretTap(){
+  tapCount++;
+  if(tapCount >= 5){
+    tapCount = 0;
+    resetEveryone();
+  }
+}
+
 
 
 /* ================= SIGNUP ================= */
@@ -272,7 +283,15 @@ function signup(){
     auth.createUserWithEmailAndPassword(e,p)
       .then(res=>{
         userId = res.user.uid;
-        db.ref("presence/"+userId).set({ username:u, speciality:"", description:"", role:"user", busy:false });
+db.ref("presence/"+userId).set({
+  username: u,
+  speciality: "",
+  description: "",
+  role: "user",
+  busy: false,
+  online: false,
+  lastSeen: Date.now()
+});
       }).catch(err=>showError(err.message));
   });
 }
@@ -288,7 +307,16 @@ function googleLogin(){
   auth.signInWithPopup(provider).then(res=>{
     userId = res.user.uid;
     db.ref("presence/"+userId).once("value").then(snap=>{
-      if(!snap.exists()) db.ref("presence/"+userId).set({ username:"user_"+userId.slice(0,6), speciality:"", description:"", role:"user", busy:false });
+      if(!snap.exists()) db.ref("presence/"+userId).set({
+  username: "user_"+userId.slice(0,6),
+  speciality: "",
+  description: "",
+  role: "user",
+  busy: false,
+  online: false,
+  lastSeen: Date.now()
+});
+
     });
   }).catch(err=>showError(err.message));
 }
@@ -368,16 +396,39 @@ function switchRole(r){
 
 /* ================= ASTROLOGER ONLINE ================= */
 function toggleOnline(isOnline){
-  const ref=db.ref("presence/"+userId);
+  const ref = db.ref("presence/"+userId);
+
   if(isOnline){
-    ref.update({ role:"astrologer", busy:false });
-    ref.onDisconnect().update({ busy:false });
+    connectedRef.on("value", snap=>{
+      if(snap.val() === true){
+        ref.update({
+          role: "astrologer",
+          busy: false,
+          online: true,
+          lastSeen: Date.now()
+        });
+
+        ref.onDisconnect().update({
+          online: false,
+          role: "user",
+          busy: false,
+          lastSeen: Date.now()
+        });
+      }
+    });
+
     startQueueListener();
   } else {
     stopQueueListener();
-    ref.update({ role:"user", busy:false });
+    ref.update({
+      online: false,
+      role: "user",
+      busy: false,
+      lastSeen: Date.now()
+    });
   }
 }
+
 
 /* ================= QUEUE LISTENER ================= */
 function startQueueListener(){
@@ -401,7 +452,7 @@ db.ref("presence").on("value", snap=>{
   astrologerList.innerHTML="";
   snap.forEach(child=>{
     const data = child.val();
-    if(data.role==="astrologer"){
+if(data.role === "astrologer" && data.online === true){
       const uname = data.username || child.key;
       const div=document.createElement("div");
       div.className="card";
@@ -481,6 +532,26 @@ function exitChat(){
   db.ref("presence/"+userId).update({ busy:false });
 }
 
+/* ================= Reset ================= */
+  function resetEveryone(){
+  if(!confirm("RESET ALL ONLINE USERS?")) return;
+
+  db.ref("presence").once("value").then(snap=>{
+    snap.forEach(child=>{
+      db.ref("presence/"+child.key).update({
+        online: false,
+        role: "user",
+        busy: false,
+        lastSeen: Date.now()
+      });
+      db.ref("requests/"+child.key).remove();
+      db.ref("currentChat/"+child.key).remove();
+    });
+  });
+
+  alert("All users reset");
+}
+  
 /* ================= LOAD USERNAMES CACHE ================= */
 function loadUserCache(){
   db.ref("presence").once("value").then(snap=>{
