@@ -341,21 +341,25 @@ db.ref("currentChat/" + userId).on("value", snap => {
 ;
 
   } else {
-    userId = null;
+  userId = null;
 
-    authCard.classList.remove("hidden");
-    profileCard.classList.add("hidden");
-    clientView.classList.add("hidden");
-    astrologerView.classList.add("hidden");
-    chatView.classList.add("hidden");
-  }
+  authCard.classList.remove("hidden");
+  clientView.classList.add("hidden");
+  astrologerView.classList.add("hidden");
+  chatView.classList.add("hidden");
+}
+
 });
 
 
 /* ================= ERROR ================= */
 function showError(msg){ error.textContent = msg; }
 function toggleSettings(){
-document.getElementById("settingsPanel").classList.toggle("open");
+  if(!userId){
+    alert("Please sign in to open settings");
+    return;
+  }
+  document.getElementById("settingsPanel").classList.toggle("open");
 }
   let tapCount = 0;
 function secretTap(){
