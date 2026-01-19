@@ -552,7 +552,7 @@ function acceptChat(queueKey, clientId){
 
 /* ================= OPEN CHAT ================= */
 function openChat(id){
-  if(chatId === id) return;
+  if(chatView && !chatView.classList.contains("hidden") && chatId === id) return;
 
   chatId = id;
 
