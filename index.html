@@ -241,9 +241,14 @@ input:focus, textarea:focus {
     <h3>Online Astrologers</h3>
     <div id="astrologerList"></div>
   </div>
+  
+  <p><strong>Your Credits:</strong> <span id="creditBalance">0</span></p>
+<button onclick="addCredits(50)">Add 50 Credits</button>
+<hr>
 
   <!-- ASTROLOGER VIEW -->
   <div id="astrologerView" class="hidden">
+    <p>Your Rate: <strong><span id="astroRate">0</span></strong> credits/min</p>
     <h3>Astrologer Dashboard</h3>
     <label>
       <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
@@ -291,6 +296,7 @@ let partnerId = null;
 let chatRef = null;
 let queueRef = null;
 let userCache = {}; // cache usernames
+let creditInterval = null;
 
 /* ================= ELEMENTS ================= */
 const authCard = document.getElementById("authCard");
@@ -325,6 +331,7 @@ auth.onAuthStateChanged(user => {
 
     loadProfile();
     loadUserCache();
+    watchCredits();
 
  // 🔥 CHAT OPEN + CHAT END LISTENER
 db.ref("currentChat/" + userId).off();
@@ -395,7 +402,11 @@ db.ref("presence/"+userId).set({
   role: "user",
   busy: false,
   online: false,
-  lastSeen: Date.now()
+  lastSeen: Date.now(),
+
+  // 🔥 CREDITS SYSTEM
+  credits: 20,
+  ratePerMinute: 2
 });
       }).catch(err=>showError(err.message));
   });
@@ -647,8 +658,13 @@ function acceptChat(queueKey, clientId){
   });
 
   db.ref("requests/"+userId+"/"+queueKey).remove();
-
+  
+startCreditTimer(clientId, userId);
   openChat(chatId);
+}
+function addCredits(amount){
+  const ref = db.ref("presence/"+userId+"/credits");
+  ref.transaction(current => (current || 0) + amount);
 }
 
 /* ================= OPEN CHAT ================= */
@@ -719,6 +735,10 @@ function sendMessage(){
 
 /* ================= EXIT CHAT ================= */
 function exitChat(){
+  if(creditInterval){
+  clearInterval(creditInterval);
+  creditInterval = null;
+}
   if(!chatId) return;
 
   if(!confirm("End chat for both users?")) return;
@@ -741,7 +761,35 @@ function exitChat(){
 
   forceCloseChat("You ended the chat");
 }
+function startCreditTimer(clientId, astrologerId){
+  const chatMetaRef = db.ref("chats/"+chatId+"/meta");
+  const clientCreditsRef = db.ref("presence/"+clientId+"/credits");
+  const astroCreditsRef = db.ref("presence/"+astrologerId+"/credits");
+  const rateRef = db.ref("presence/"+astrologerId+"/ratePerMinute");
 
+  creditInterval = setInterval(async () => {
+    const rateSnap = await rateRef.get();
+    const rate = rateSnap.val() || 1;
+
+    clientCreditsRef.transaction(c => {
+      if((c || 0) < rate){
+        endChatDueToCredits();
+        return c;
+      }
+      return c - rate;
+    });
+
+    astroCreditsRef.transaction(c => (c || 0) + rate);
+  }, 60000); // ⏱️ per minute
+}
+function endChatDueToCredits(){
+  clearInterval(creditInterval);
+  creditInterval = null;
+
+  alert("Credits finished. Chat ended.");
+
+  db.ref("chats/"+chatId+"/meta/active").set(false);
+}
 
 /* ================= Reset ================= */
   function resetEveryone(){
@@ -767,6 +815,20 @@ function exitChat(){
 function loadUserCache(){
   db.ref("presence").once("value").then(snap=>{
     snap.forEach(child=>{ userCache[child.key] = child.val().username; });
+  });
+}
+  function watchCredits(){
+  db.ref("presence/"+userId+"/credits").on("value", snap=>{
+    const el = document.getElementById("creditBalance");
+    if(el) el.textContent = snap.val() || 0;
+  });
+}
+  function watchAstroRate(){
+  db.ref("presence/"+userId+"/ratePerMinute").on("value", snap=>{
+    const el = document.getElementById("astroRate");
+    if(el){
+      el.textContent = snap.val() || 0;
+    }
   });
 }
 </script>
