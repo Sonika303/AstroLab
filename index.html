@@ -236,16 +236,6 @@ input:focus, textarea:focus {
     <p id="error"></p>
   </div>
 
-  <!-- PROFILE SETTINGS -->
-  <div id="profileCard" class="card hidden">
-    <h3>Profile Settings</h3>
-    <input id="p_username" placeholder="Username">
-    <input id="p_speciality" placeholder="Speciality">
-    <textarea id="p_desc" placeholder="Description"></textarea>
-    <button onclick="saveProfile()">Save</button>
-    <button onclick="logout()">Logout</button>
-  </div>
-
   <!-- CLIENT VIEW -->
   <div id="clientView" class="hidden">
     <h3>Online Astrologers</h3>
@@ -304,7 +294,6 @@ let userCache = {}; // cache usernames
 
 /* ================= ELEMENTS ================= */
 const authCard = document.getElementById("authCard");
-const profileCard = document.getElementById("profileCard");
 const clientView = document.getElementById("clientView");
 const astrologerView = document.getElementById("astrologerView");
 const chatView = document.getElementById("chatView");
@@ -316,10 +305,6 @@ const msgInput = document.getElementById("msgInput");
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const usernameInput = document.getElementById("username");
-const p_username = document.getElementById("p_username");
-const p_speciality = document.getElementById("p_speciality");
-const p_desc = document.getElementById("p_desc");
-
 const avatarInput = document.getElementById("avatarInput");
 const avatarPreview = document.getElementById("avatarPreview");
 const s_name = document.getElementById("s_name");
@@ -332,8 +317,9 @@ auth.onAuthStateChanged(user => {
     userId = user.uid;
 
     authCard.classList.add("hidden");
-    profileCard.classList.remove("hidden");
     clientView.classList.remove("hidden");
+    astrologerView.classList.add("hidden");
+    chatView.classList.add("hidden");
     astrologerView.classList.add("hidden");
     chatView.classList.add("hidden");
 
@@ -437,59 +423,46 @@ function googleLogin(){
 
 /* ================= LOAD PROFILE ================= */
 function loadProfile(){
-  db.ref("presence/"+userId).once("value").then(snap=>{
-    const d = snap.val(); if(!d) return;
+  if(!userId) return;
 
-    p_username.value = d.username || "";
-    p_speciality.value = d.speciality || "";
-    p_desc.value = d.description || "";
+  db.ref("presence/"+userId).once("value").then(snap=>{
+    const d = snap.val();
+    if(!d) return;
 
     s_name.value = d.username || "";
     s_speciality.value = d.speciality || "";
     s_desc.value = d.description || "";
 
-   if(d.avatar){
-  avatarPreview.src = d.avatar;
-} else {
-  avatarPreview.src = "https://via.placeholder.com/80";
-}
-
+    avatarPreview.src = d.avatar || "https://via.placeholder.com/80";
   });
 }
 
-
-/* ================= SAVE PROFILE ================= */
-function saveProfile(){
-  const uname = p_username.value.trim().toLowerCase();
-  if(!uname) return showError("Username required");
-
-  db.ref("presence").once("value").then(snap=>{
-    let taken=false;
-    snap.forEach(c=>{ if(c.key!==userId && c.val().username===uname) taken=true; });
-    if(taken) return showError("Username already in use");
-
-    db.ref("presence/"+userId).update({ username:uname, speciality:p_speciality.value, description:p_desc.value });
-    alert("Profile saved");
-  });
-}
 
 /* ================= LOGOUT ================= */
 function logout(){ auth.signOut(); }
 function saveSettings(){
+  if(!userId){
+    alert("Please sign in to save settings");
+    return;
+  }
+
   const file = avatarInput.files[0];
   const name = s_name.value.trim().toLowerCase();
   if(!name) return showError("Name required");
 
   if(file){
     const ref = storage.ref(`avatars/${userId}.jpg`);
-    ref.put(file, { contentType: file.type }).then(()=>{
-      return ref.getDownloadURL();
-    }).then(url=>{
-      updateProfile(name, url);
-      avatarPreview.src = url;
-    }).catch(err=>showError(err.message));
+    ref.put(file, { contentType: file.type })
+      .then(()=>ref.getDownloadURL())
+      .then(url=>{
+        updateProfile(name, url);
+        avatarPreview.src = url;
+        alert("Settings saved");
+      })
+      .catch(err=>showError(err.message));
   } else {
     updateProfile(name, null);
+    alert("Settings saved");
   }
 }
 
@@ -507,6 +480,11 @@ function updateProfile(name, avatar){
 
 /* ================= ROLE SWITCH ================= */
 function switchRole(r){
+  if(!userId){
+    alert("Please sign in first");
+    return;
+  }
+
   role = r;
   clientView.classList.toggle("hidden", r!=="client");
   astrologerView.classList.toggle("hidden", r!=="astrologer");
@@ -606,7 +584,16 @@ div.innerHTML = `
 
 /* ================= SEND REQUEST ================= */
 function requestChat(astrologerId){
-  db.ref("requests/"+astrologerId).push({ client:userId, time:Date.now() });
+  if(!userId){
+    alert("Please sign in to request a chat");
+    return;
+  }
+
+  db.ref("requests/"+astrologerId).push({
+    client: userId,
+    time: Date.now()
+  });
+
   alert("Chat request sent");
 }
 
