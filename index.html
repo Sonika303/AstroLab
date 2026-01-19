@@ -388,9 +388,10 @@ function signup(){
       .then(res=>{
         userId = res.user.uid;
 db.ref("presence/"+userId).set({
-  username: u,
+  username: "user_"+userId.slice(0,6),
   speciality: "",
   description: "",
+  avatar: res.user.photoURL || "",
   role: "user",
   busy: false,
   online: false,
@@ -437,10 +438,12 @@ function loadProfile(){
     s_speciality.value = d.speciality || "";
     s_desc.value = d.description || "";
 
-    avatarPreview.src = d.avatar || "https://via.placeholder.com/80";
+    // 🔥 force reload avatar
+    avatarPreview.src = d.avatar 
+      ? d.avatar + "&r=" + Date.now()
+      : "https://via.placeholder.com/80";
   });
 }
-
 
 /* ================= LOGOUT ================= */
 function logout(){ auth.signOut(); }
@@ -454,22 +457,42 @@ function saveSettings(){
   const name = s_name.value.trim().toLowerCase();
   if(!name) return showError("Name required");
 
-  if(file){
-    const ref = storage.ref(`avatars/${userId}.jpg`);
-    ref.put(file, { contentType: file.type })
-      .then(()=>ref.getDownloadURL())
-      .then(url=>{
-        updateProfile(name, url);
-        avatarPreview.src = url;
-        alert("Settings saved");
-      })
-      .catch(err=>showError(err.message));
-  } else {
-    updateProfile(name, null);
-    alert("Settings saved");
-  }
-}
+  // base profile data
+  const baseData = {
+    username: name,
+    speciality: s_speciality.value,
+    description: s_desc.value
+  };
 
+  // NO IMAGE → just save text
+  if(!file){
+    db.ref("presence/"+userId).update(baseData).then(()=>{
+      alert("Settings saved");
+    });
+    return;
+  }
+
+  // IMAGE UPLOAD
+  const ref = storage.ref(`avatars/${userId}.jpg`);
+  ref.put(file)
+    .then(()=>ref.getDownloadURL())
+    .then(url=>{
+      // 🔥 cache-busting
+      const bustedUrl = url + "?v=" + Date.now();
+
+      baseData.avatar = bustedUrl;
+
+      return db.ref("presence/"+userId).update(baseData).then(()=>{
+        avatarPreview.src = bustedUrl;
+        avatarInput.value = "";
+        alert("Settings saved");
+      });
+    })
+    .catch(err=>{
+      console.error(err);
+      showError("Image upload failed");
+    });
+}
 
 function updateProfile(name, avatar){
   const data = {
