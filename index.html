@@ -247,9 +247,15 @@ input:focus, textarea:focus {
 <hr>
 
   <!-- ASTROLOGER VIEW -->
-  <div id="astrologerView" class="hidden">
-    <p>Your Rate: <strong><span id="astroRate">0</span></strong> credits/min</p>
-    <h3>Astrologer Dashboard</h3>
+<div id="astrologerView" class="hidden">
+  <p>Your Rate: <strong><span id="astroRate">0</span></strong> credits/min</p>
+
+  <!-- 🔥 EDIT RATE -->
+  <input id="rateInput" type="number" min="1" placeholder="Set credits per minute">
+  <button onclick="updateRate()">Update Rate</button>
+
+  <h3>Astrologer Dashboard</h3>
+  
     <label>
       <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
     </label>
@@ -332,6 +338,7 @@ auth.onAuthStateChanged(user => {
     loadProfile();
     loadUserCache();
     watchCredits();
+    watchAstroRate();
 
  // 🔥 CHAT OPEN + CHAT END LISTENER
 db.ref("currentChat/" + userId).off();
@@ -830,6 +837,21 @@ function loadUserCache(){
       el.textContent = snap.val() || 0;
     }
   });
+}
+  function updateRate(){
+  const input = document.getElementById("rateInput");
+  const rate = parseInt(input.value);
+
+  if(!rate || rate < 1){
+    alert("Rate must be 1 or more");
+    return;
+  }
+
+  db.ref("presence/"+userId).update({
+    ratePerMinute: rate
+  });
+
+  input.value = "";
 }
 </script>
 
