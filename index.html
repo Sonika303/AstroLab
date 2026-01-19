@@ -584,11 +584,21 @@ function forceCloseChat(message){
   chatId = null;
   partnerId = null;
 
-  if(chatRef) chatRef.off();
+  if(chatRef){
+    chatRef.off();
+    chatRef = null;
+  }
 
   chatView.classList.add("hidden");
-  clientView.classList.toggle("hidden", role !== "client");
-  astrologerView.classList.toggle("hidden", role !== "astrologer");
+
+  // 🔥 Restore correct dashboard
+  if(role === "client"){
+    clientView.classList.remove("hidden");
+    astrologerView.classList.add("hidden");
+  } else {
+    astrologerView.classList.remove("hidden");
+    clientView.classList.add("hidden");
+  }
 
   alert(message);
 }
@@ -614,17 +624,19 @@ function exitChat(){
   );
   if(!ok) return;
 
-  // remove chat for BOTH users
+  // 🔥 clear chat assignment for BOTH users
   db.ref("currentChat/" + userId).remove();
   if(partnerId) db.ref("currentChat/" + partnerId).remove();
 
-  // free astrologer
-  db.ref("presence/" + userId).update({ busy:false });
+  // 🔥 FREE ASTROLOGER (important fix)
+  if(role === "astrologer"){
+    db.ref("presence/" + userId).update({ busy:false });
+  } else if(partnerId){
+    db.ref("presence/" + partnerId).update({ busy:false });
+  }
 
   forceCloseChat("You ended the chat");
 }
-
-
 
 /* ================= Reset ================= */
   function resetEveryone(){
