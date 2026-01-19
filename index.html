@@ -255,6 +255,10 @@ input:focus, textarea:focus {
   <button onclick="updateRate()">Update Rate</button>
 
   <h3>Astrologer Dashboard</h3>
+  <p>
+  <strong>Today's Earnings:</strong>
+  <span id="todayEarnings">0</span> credits
+</p>
   
     <label>
       <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
@@ -339,6 +343,7 @@ auth.onAuthStateChanged(user => {
     loadUserCache();
     watchCredits();
     watchAstroRate();
+    watchTodayEarnings();
 
  // 🔥 CHAT OPEN + CHAT END LISTENER
 db.ref("currentChat/" + userId).off();
@@ -613,13 +618,14 @@ if(data.role === "astrologer" && data.online === true && !data.busy){
 div.innerHTML = `
   <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
   <strong>${uname}</strong><br>
-  <small>${data.speciality || "Astrology"}</small>
+  <small>${data.speciality || "Astrology"}</small><br>
+  <small><strong>${data.ratePerMinute || 0}</strong> credits / min</small>
   <p>${data.description || ""}</p>
-  <button onclick="requestChat('${child.key}')" ${data.busy?"disabled":""}>
+  <button onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
+    ${data.busy?"disabled":""}>
     ${data.busy ? "Busy" : "Request Chat"}
   </button>
 `;
-
       astrologerList.appendChild(div);
     }
     // cache usernames
@@ -628,18 +634,27 @@ div.innerHTML = `
 });
 
 /* ================= SEND REQUEST ================= */
-function requestChat(astrologerId){
+function requestChat(astrologerId, rate){
   if(!userId){
     alert("Please sign in to request a chat");
     return;
   }
 
-  db.ref("requests/"+astrologerId).push({
-    client: userId,
-    time: Date.now()
-  });
+  db.ref("presence/"+userId+"/credits").once("value").then(snap=>{
+    const credits = snap.val() || 0;
 
-  alert("Chat request sent");
+    if(credits < rate){
+      alert("Not enough credits for this astrologer");
+      return;
+    }
+
+    db.ref("requests/"+astrologerId).push({
+      client: userId,
+      time: Date.now()
+    });
+
+    alert("Chat request sent");
+  });
 }
 
 /* ================= ACCEPT CHAT ================= */
@@ -786,7 +801,12 @@ function startCreditTimer(clientId, astrologerId){
       return c - rate;
     });
 
-    astroCreditsRef.transaction(c => (c || 0) + rate);
+astroCreditsRef.transaction(c => (c || 0) + rate);
+
+// 🔥 track today's earnings
+const todayKey = new Date().toISOString().slice(0,10);
+db.ref(`earnings/${astrologerId}/${todayKey}`)
+  .transaction(e => (e || 0) + rate);
   }, 60000); // ⏱️ per minute
 }
 function endChatDueToCredits(){
@@ -838,7 +858,12 @@ function loadUserCache(){
     }
   });
 }
-  function updateRate(){
+function updateRate(){
+  if(chatId){
+    alert("You cannot change rate during live chat");
+    return;
+  }
+
   const input = document.getElementById("rateInput");
   const rate = parseInt(input.value);
 
@@ -853,6 +878,15 @@ function loadUserCache(){
 
   input.value = "";
 }
+
+  function watchTodayEarnings(){
+  const todayKey = new Date().toISOString().slice(0,10);
+  db.ref(`earnings/${userId}/${todayKey}`).on("value", snap=>{
+    const el = document.getElementById("todayEarnings");
+    if(el) el.textContent = snap.val() || 0;
+  });
+}
+
 </script>
 
 </body>
