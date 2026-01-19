@@ -233,6 +233,12 @@ const p_username = document.getElementById("p_username");
 const p_speciality = document.getElementById("p_speciality");
 const p_desc = document.getElementById("p_desc");
 
+const avatarInput = document.getElementById("avatarInput");
+const avatarPreview = document.getElementById("avatarPreview");
+const s_name = document.getElementById("s_name");
+const s_speciality = document.getElementById("s_speciality");
+const s_desc = document.getElementById("s_desc");
+
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
   if(user){
@@ -334,9 +340,12 @@ function loadProfile(){
     s_speciality.value = d.speciality || "";
     s_desc.value = d.description || "";
 
-    if(d.avatar){
-      avatarPreview.src = d.avatar;
-    }
+   if(d.avatar){
+  avatarPreview.src = d.avatar;
+} else {
+  avatarPreview.src = "https://via.placeholder.com/80";
+}
+
   });
 }
 
@@ -364,16 +373,18 @@ function saveSettings(){
   if(!name) return showError("Name required");
 
   if(file){
-    const ref = storage.ref("avatars/"+userId);
-    ref.put(file).then(()=>{
-      ref.getDownloadURL().then(url=>{
-        updateProfile(name, url);
-      });
-    });
+    const ref = storage.ref(`avatars/${userId}.jpg`);
+    ref.put(file, { contentType: file.type }).then(()=>{
+      return ref.getDownloadURL();
+    }).then(url=>{
+      updateProfile(name, url);
+      avatarPreview.src = url;
+    }).catch(err=>showError(err.message));
   } else {
     updateProfile(name, null);
   }
 }
+
 
 function updateProfile(name, avatar){
   const data = {
@@ -481,36 +492,61 @@ function requestChat(astrologerId){
 
 /* ================= ACCEPT CHAT ================= */
 function acceptChat(queueKey, clientId){
-  chatId=db.ref().push().key;
-  partnerId=clientId;
+  chatId = db.ref("chats").push().key;
+  partnerId = clientId;
+
   db.ref("presence/"+userId).update({ busy:true });
+
+  db.ref("currentChat").update({
+    [userId]: chatId,
+    [clientId]: chatId
+  });
+
+  db.ref("chats/"+chatId+"/meta").set({
+    astrologer: userId,
+    client: clientId,
+    started: Date.now()
+  });
+
   db.ref("requests/"+userId+"/"+queueKey).remove();
-  db.ref("currentChat/"+userId).set(chatId);
-  db.ref("currentChat/"+clientId).set(chatId);
 }
+
 
 /* ================= CHAT ASSIGN ================= */
 db.ref("currentChat/"+userId).on("value", snap=>{
-  if(snap.exists()) openChat(snap.val());
+  if(snap.exists()){
+    openChat(snap.val());
+  }
 });
+
 
 /* ================= OPEN CHAT ================= */
 function openChat(id){
-  chatId=id;
+  chatId = id;
   chatView.classList.remove("hidden");
-  messagesDiv.innerHTML="";
+  messagesDiv.innerHTML = "";
+
+  db.ref("chats/"+id+"/meta").once("value").then(snap=>{
+    const meta = snap.val();
+    if(meta){
+      partnerId = meta.client === userId ? meta.astrologer : meta.client;
+    }
+  });
+
   if(chatRef) chatRef.off();
-  chatRef=db.ref("chats/"+id+"/messages");
+  chatRef = db.ref("chats/"+id+"/messages");
+
   chatRef.on("child_added", snap=>{
     const msg = snap.val();
     const div = document.createElement("div");
-    const fromName = userCache[msg.from] || msg.from;
-    div.className = "message "+(msg.from===userId?"self":"");
-    div.textContent = fromName+": "+msg.text;
+    const fromName = userCache[msg.from] || "User";
+    div.className = "message " + (msg.from === userId ? "self" : "");
+    div.textContent = fromName + ": " + msg.text;
     messagesDiv.appendChild(div);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 }
+
 
 /* ================= SEND MESSAGE ================= */
 function sendMessage(){
@@ -524,13 +560,19 @@ function sendMessage(){
 /* ================= EXIT CHAT ================= */
 function exitChat(){
   if(!chatId) return;
+
   db.ref("currentChat/"+userId).remove();
   if(partnerId) db.ref("currentChat/"+partnerId).remove();
-  chatId=null; partnerId=null;
-  chatView.classList.add("hidden");
-  if(chatRef) chatRef.off();
+
   db.ref("presence/"+userId).update({ busy:false });
+
+  chatId = null;
+  partnerId = null;
+  chatView.classList.add("hidden");
+
+  if(chatRef) chatRef.off();
 }
+
 
 /* ================= Reset ================= */
   function resetEveryone(){
