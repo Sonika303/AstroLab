@@ -271,8 +271,9 @@ input:focus, textarea:focus {
   <div id="chatView" class="hidden">
 <h3 style="display:flex;justify-content:space-between;align-items:center;">
   Live Chat
-  <span style="font-size:12px;color:#6b7280;">Connected</span>
-</h3>    <div class="chat-box" id="messages"></div>
+  <span id="chatTimer" style="font-size:12px;color:#6b7280;">00:00</span>
+</h3>
+  <div class="chat-box" id="messages"></div>
     <input id="msgInput" placeholder="Type message..." />
     <br>
     <button onclick="sendMessage()">Send</button>
@@ -307,6 +308,8 @@ let chatRef = null;
 let queueRef = null;
 let userCache = {}; // cache usernames
 let creditInterval = null;
+let chatStartTime = null;
+let chatTimerInterval = null;
 
 /* ================= ELEMENTS ================= */
 const authCard = document.getElementById("authCard");
@@ -699,17 +702,20 @@ function openChat(id){
   astrologerView.classList.add("hidden");
   chatView.classList.remove("hidden");
   messagesDiv.innerHTML = "";
+  chatStartTime = Date.now();
+  startChatTimer();
+
 
   const metaRef = db.ref("chats/"+id+"/meta");
 
   // 🔥 REAL-TIME END DETECTION
   metaRef.on("value", snap=>{
     const meta = snap.val();
-    if(!meta || meta.active === false){
-      metaRef.off();
-      forceCloseChat("Chat ended by other user");
-      return;
-    }
+  if(!meta || meta.active === false){
+  metaRef.off();
+  forceCloseChat(meta?.endReason || "Chat ended");
+  return;
+}
 
     partnerId = meta.client === userId ? meta.astrologer : meta.client;
   });
@@ -728,6 +734,7 @@ function openChat(id){
 }
   
 function forceCloseChat(message){
+  stopChatTimer();
   if(chatRef){ chatRef.off(); chatRef = null; }
 
   chatId = null;
@@ -742,7 +749,13 @@ function forceCloseChat(message){
     astrologerView.classList.remove("hidden");
     clientView.classList.add("hidden");
   }
-
+if(role === "astrologer"){
+  db.ref("chats/"+chatId+"/meta/earned").once("value").then(snap=>{
+    const earned = snap.val() || 0;
+    alert(`Chat ended.\nYou earned ${earned} credits.`);
+  });
+  return;
+}
   alert(message);
 }
 
@@ -784,24 +797,33 @@ function exitChat(){
   forceCloseChat("You ended the chat");
 }
 function startCreditTimer(clientId, astrologerId){
-  const chatMetaRef = db.ref("chats/"+chatId+"/meta");
   const clientCreditsRef = db.ref("presence/"+clientId+"/credits");
   const astroCreditsRef = db.ref("presence/"+astrologerId+"/credits");
   const rateRef = db.ref("presence/"+astrologerId+"/ratePerMinute");
-
+  
+ db.ref("chats/"+chatId+"/meta/earned").set(0);
   creditInterval = setInterval(async () => {
-    const rateSnap = await rateRef.get();
-    const rate = rateSnap.val() || 1;
+    const rate = (await rateRef.get()).val() || 1;
+    const clientCredits = (await clientCreditsRef.get()).val() || 0;
 
-    clientCreditsRef.transaction(c => {
-      if((c || 0) < rate){
-        endChatDueToCredits();
-        return c;
-      }
-      return c - rate;
-    });
+    // 🔥 IMMEDIATE END CONDITION
+    if(clientCredits < rate){
+      endChat("Client ran out of credits");
+      return;
+    }
 
-astroCreditsRef.transaction(c => (c || 0) + rate);
+    await clientCreditsRef.set(clientCredits - rate);
+    await astroCreditsRef.transaction(c => (c || 0) + rate);
+    db.ref("chats/"+chatId+"/meta/earned")
+  .transaction(e => (e || 0) + rate);
+
+    // track earnings
+    const todayKey = new Date().toISOString().slice(0,10);
+    db.ref(`earnings/${astrologerId}/${todayKey}`)
+      .transaction(e => (e || 0) + rate);
+
+  }, 60000);
+}
 
 // 🔥 track today's earnings
 const todayKey = new Date().toISOString().slice(0,10);
@@ -884,6 +906,38 @@ function updateRate(){
   db.ref(`earnings/${userId}/${todayKey}`).on("value", snap=>{
     const el = document.getElementById("todayEarnings");
     if(el) el.textContent = snap.val() || 0;
+  });
+}
+function startChatTimer(){
+  stopChatTimer();
+  chatTimerInterval = setInterval(()=>{
+    const diff = Date.now() - chatStartTime;
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    document.getElementById("chatTimer").textContent =
+      `${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}`;
+  }, 1000);
+}
+
+function stopChatTimer(){
+  if(chatTimerInterval){
+    clearInterval(chatTimerInterval);
+    chatTimerInterval = null;
+  }
+}
+function endChat(reason){
+  stopChatTimer();
+  if(creditInterval){
+    clearInterval(creditInterval);
+    creditInterval = null;
+  }
+
+  if(!chatId) return;
+
+  db.ref("chats/"+chatId+"/meta").update({
+    active: false,
+    endedAt: Date.now(),
+    endReason: reason
   });
 }
 
