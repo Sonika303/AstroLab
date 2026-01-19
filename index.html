@@ -528,80 +528,74 @@ function acceptChat(queueKey, clientId){
   chatId = db.ref("chats").push().key;
   partnerId = clientId;
 
-  // Mark astrologer busy
+  // mark astrologer busy
   db.ref("presence/"+userId).update({ busy:true });
 
-  // Assign chat to both users
+  // assign chat to both users
   db.ref("currentChat").update({
     [userId]: chatId,
     [clientId]: chatId
   });
-  
-db.ref("chats/"+chatId+"/meta").set({
-  astrologer: userId,
-  client: clientId,
-  started: Date.now(),
-  active: true   // 🔥 ADD THIS
-});
 
-  // Save chat metadata
+  // ✅ SINGLE SOURCE OF TRUTH
   db.ref("chats/"+chatId+"/meta").set({
     astrologer: userId,
     client: clientId,
-    started: Date.now()
+    started: Date.now(),
+    active: true
   });
 
-  // Remove request
   db.ref("requests/"+userId+"/"+queueKey).remove();
 
-  // 🔥 FORCE OPEN CHAT FOR ASTROLOGER
   openChat(chatId);
 }
 
 /* ================= OPEN CHAT ================= */
 function openChat(id){
-  // 🔥 block reopening closed chat
-  db.ref("chats/"+id+"/meta").once("value").then(snap=>{
+  if(chatId === id) return;
+
+  chatId = id;
+
+  clientView.classList.add("hidden");
+  astrologerView.classList.add("hidden");
+  chatView.classList.remove("hidden");
+  messagesDiv.innerHTML = "";
+
+  const metaRef = db.ref("chats/"+id+"/meta");
+
+  // 🔥 REAL-TIME END DETECTION
+  metaRef.on("value", snap=>{
     const meta = snap.val();
-    if(!meta || meta.active === false) return;
-
-    chatId = id;
-
-    clientView.classList.add("hidden");
-    astrologerView.classList.add("hidden");
-    chatView.classList.remove("hidden");
-    messagesDiv.innerHTML = "";
+    if(!meta || meta.active === false){
+      metaRef.off();
+      forceCloseChat("Chat ended by other user");
+      return;
+    }
 
     partnerId = meta.client === userId ? meta.astrologer : meta.client;
+  });
 
-    if(chatRef) chatRef.off();
-    chatRef = db.ref("chats/"+id+"/messages");
+  if(chatRef) chatRef.off();
+  chatRef = db.ref("chats/"+id+"/messages");
 
-    chatRef.on("child_added", snap=>{
-      const msg = snap.val();
-      const div = document.createElement("div");
-      const fromName = userCache[msg.from] || "User";
-      div.className = "message " + (msg.from === userId ? "self" : "");
-      div.textContent = fromName + ": " + msg.text;
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
+  chatRef.on("child_added", snap=>{
+    const msg = snap.val();
+    const div = document.createElement("div");
+    div.className = "message " + (msg.from === userId ? "self" : "");
+    div.textContent = (userCache[msg.from] || "User") + ": " + msg.text;
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 }
-
+  
 function forceCloseChat(message){
-  if(!chatId && chatView.classList.contains("hidden")) return;
+  if(chatRef){ chatRef.off(); chatRef = null; }
+
   chatId = null;
   partnerId = null;
 
-  if(chatRef){
-    chatRef.off();
-    chatRef = null;
-  }
-
   chatView.classList.add("hidden");
 
-  // 🔥 Restore correct dashboard
   if(role === "client"){
     clientView.classList.remove("hidden");
     astrologerView.classList.add("hidden");
@@ -612,7 +606,6 @@ function forceCloseChat(message){
 
   alert(message);
 }
-
 
 /* ================= SEND MESSAGE ================= */
 function sendMessage(){
@@ -627,25 +620,22 @@ function sendMessage(){
 function exitChat(){
   if(!chatId) return;
 
-  const ok = confirm(
-    "End this chat?\n\n" +
-    "• Chat will close for both users\n" +
-    "• Credits will still be deducted"
-  );
-  if(!ok) return;
+  if(!confirm("End chat for both users?")) return;
 
-  // 🔥 mark chat inactive
-  db.ref("chats/"+chatId+"/meta/active").set(false);
+  const endedChatId = chatId;
 
-  // 🔥 clear chat assignment for both users
-  db.ref("currentChat/" + userId).remove();
-  if(partnerId) db.ref("currentChat/" + partnerId).remove();
+  // 🔥 AUTHORITATIVE END
+  db.ref("chats/"+endedChatId+"/meta/active").set(false);
 
-  // 🔥 free astrologer
+  // remove assignments
+  db.ref("currentChat/"+userId).remove();
+  if(partnerId) db.ref("currentChat/"+partnerId).remove();
+
+  // free astrologer
   if(role === "astrologer"){
-    db.ref("presence/" + userId).update({ busy:false });
+    db.ref("presence/"+userId).update({ busy:false });
   } else if(partnerId){
-    db.ref("presence/" + partnerId).update({ busy:false });
+    db.ref("presence/"+partnerId).update({ busy:false });
   }
 
   forceCloseChat("You ended the chat");
