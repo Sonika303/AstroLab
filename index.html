@@ -446,15 +446,27 @@ function startQueueListener(){
   queueList.innerHTML="";
   queueRef = db.ref("requests/"+userId);
   queueRef.off();
-  queueRef.on("child_added", snap=>{
-    const data = snap.val();
-    const clientName = userCache[data.client] || data.client;
-    const div = document.createElement("div");
-    div.className="card";
-    div.innerHTML=`Request from <strong>${clientName}</strong><br>
-      <button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>`;
-    queueList.appendChild(div);
-  });
+ queueRef.on("child_added", snap=>{
+  const data = snap.val();
+  const clientName = userCache[data.client] || data.client;
+
+  const div = document.createElement("div");
+  div.className = "card";
+  div.id = "req_" + snap.key;
+
+  div.innerHTML = `
+    Request from <strong>${clientName}</strong><br>
+    <button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>
+  `;
+
+  queueList.appendChild(div);
+});
+
+queueRef.on("child_removed", snap=>{
+  const el = document.getElementById("req_" + snap.key);
+  if(el) el.remove();
+});
+
 }
 function stopQueueListener(){ if(queueRef) queueRef.off(); queueList.innerHTML=""; }
 
@@ -463,7 +475,7 @@ db.ref("presence").on("value", snap=>{
   astrologerList.innerHTML="";
   snap.forEach(child=>{
     const data = child.val();
-if(data.role === "astrologer" && data.online === true){
+if(data.role === "astrologer" && data.online === true && !data.busy){
       const uname = data.username || child.key;
       const div=document.createElement("div");
       div.className="card";
@@ -495,30 +507,36 @@ function acceptChat(queueKey, clientId){
   chatId = db.ref("chats").push().key;
   partnerId = clientId;
 
+  // Mark astrologer busy
   db.ref("presence/"+userId).update({ busy:true });
 
+  // Assign chat to both users
   db.ref("currentChat").update({
     [userId]: chatId,
     [clientId]: chatId
   });
 
+  // Save chat metadata
   db.ref("chats/"+chatId+"/meta").set({
     astrologer: userId,
     client: clientId,
     started: Date.now()
   });
 
+  // Remove request
   db.ref("requests/"+userId+"/"+queueKey).remove();
+
+  // 🔥 FORCE OPEN CHAT FOR ASTROLOGER
+  openChat(chatId);
 }
 
 
 /* ================= CHAT ASSIGN ================= */
 db.ref("currentChat/"+userId).on("value", snap=>{
-  if(snap.exists()){
+  if(snap.exists() && snap.val() !== chatId){
     openChat(snap.val());
   }
 });
-
 
 /* ================= OPEN CHAT ================= */
 function openChat(id){
