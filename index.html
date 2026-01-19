@@ -536,6 +536,13 @@ function acceptChat(queueKey, clientId){
     [userId]: chatId,
     [clientId]: chatId
   });
+  
+db.ref("chats/"+chatId+"/meta").set({
+  astrologer: userId,
+  client: clientId,
+  started: Date.now(),
+  active: true   // 🔥 ADD THIS
+});
 
   // Save chat metadata
   db.ref("chats/"+chatId+"/meta").set({
@@ -553,34 +560,37 @@ function acceptChat(queueKey, clientId){
 
 /* ================= OPEN CHAT ================= */
 function openChat(id){
-  chatId = id;
-  
-  clientView.classList.add("hidden");
-astrologerView.classList.add("hidden");
-  chatView.classList.remove("hidden");
-  messagesDiv.innerHTML = "";
-
+  // 🔥 block reopening closed chat
   db.ref("chats/"+id+"/meta").once("value").then(snap=>{
     const meta = snap.val();
-    if(meta){
-      partnerId = meta.client === userId ? meta.astrologer : meta.client;
-    }
-  });
+    if(!meta || meta.active === false) return;
 
-  if(chatRef) chatRef.off();
-  chatRef = db.ref("chats/"+id+"/messages");
+    chatId = id;
 
-  chatRef.on("child_added", snap=>{
-    const msg = snap.val();
-    const div = document.createElement("div");
-    const fromName = userCache[msg.from] || "User";
-    div.className = "message " + (msg.from === userId ? "self" : "");
-    div.textContent = fromName + ": " + msg.text;
-    messagesDiv.appendChild(div);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    clientView.classList.add("hidden");
+    astrologerView.classList.add("hidden");
+    chatView.classList.remove("hidden");
+    messagesDiv.innerHTML = "";
+
+    partnerId = meta.client === userId ? meta.astrologer : meta.client;
+
+    if(chatRef) chatRef.off();
+    chatRef = db.ref("chats/"+id+"/messages");
+
+    chatRef.on("child_added", snap=>{
+      const msg = snap.val();
+      const div = document.createElement("div");
+      const fromName = userCache[msg.from] || "User";
+      div.className = "message " + (msg.from === userId ? "self" : "");
+      div.textContent = fromName + ": " + msg.text;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
   });
 }
+
 function forceCloseChat(message){
+  if(!chatId && chatView.classList.contains("hidden")) return;
   chatId = null;
   partnerId = null;
 
@@ -624,11 +634,14 @@ function exitChat(){
   );
   if(!ok) return;
 
-  // 🔥 clear chat assignment for BOTH users
+  // 🔥 mark chat inactive
+  db.ref("chats/"+chatId+"/meta/active").set(false);
+
+  // 🔥 clear chat assignment for both users
   db.ref("currentChat/" + userId).remove();
   if(partnerId) db.ref("currentChat/" + partnerId).remove();
 
-  // 🔥 FREE ASTROLOGER (important fix)
+  // 🔥 free astrologer
   if(role === "astrologer"){
     db.ref("presence/" + userId).update({ busy:false });
   } else if(partnerId){
@@ -637,6 +650,7 @@ function exitChat(){
 
   forceCloseChat("You ended the chat");
 }
+
 
 /* ================= Reset ================= */
   function resetEveryone(){
