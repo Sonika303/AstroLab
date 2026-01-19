@@ -243,13 +243,27 @@ const s_desc = document.getElementById("s_desc");
 auth.onAuthStateChanged(user => {
   if(user){
     userId = user.uid;
+
     authCard.classList.add("hidden");
     profileCard.classList.remove("hidden");
     clientView.classList.remove("hidden");
+    astrologerView.classList.add("hidden");
+    chatView.classList.add("hidden");
+
     loadProfile();
     loadUserCache();
+
+    // 🔥 IMPORTANT: Attach chat listener AFTER login
+    db.ref("currentChat/" + userId).off();
+    db.ref("currentChat/" + userId).on("value", snap => {
+      if (snap.exists()) {
+        openChat(snap.val());
+      }
+    });
+
   } else {
     userId = null;
+
     authCard.classList.remove("hidden");
     profileCard.classList.add("hidden");
     clientView.classList.add("hidden");
@@ -257,6 +271,7 @@ auth.onAuthStateChanged(user => {
     chatView.classList.add("hidden");
   }
 });
+
 
 /* ================= ERROR ================= */
 function showError(msg){ error.textContent = msg; }
@@ -530,17 +545,12 @@ function acceptChat(queueKey, clientId){
   openChat(chatId);
 }
 
-
-/* ================= CHAT ASSIGN ================= */
-db.ref("currentChat/"+userId).on("value", snap=>{
-  if(snap.exists() && snap.val() !== chatId){
-    openChat(snap.val());
-  }
-});
-
 /* ================= OPEN CHAT ================= */
 function openChat(id){
   chatId = id;
+  
+  clientView.classList.add("hidden");
+astrologerView.classList.add("hidden");
   chatView.classList.remove("hidden");
   messagesDiv.innerHTML = "";
 
