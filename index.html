@@ -253,13 +253,19 @@ auth.onAuthStateChanged(user => {
     loadProfile();
     loadUserCache();
 
-    // 🔥 IMPORTANT: Attach chat listener AFTER login
-    db.ref("currentChat/" + userId).off();
-    db.ref("currentChat/" + userId).on("value", snap => {
-      if (snap.exists()) {
-        openChat(snap.val());
-      }
-    });
+ // 🔥 CHAT OPEN + CHAT END LISTENER
+db.ref("currentChat/" + userId).off();
+db.ref("currentChat/" + userId).on("value", snap => {
+  if (snap.exists()) {
+    if (!chatId || chatId !== snap.val()) {
+      openChat(snap.val());
+    }
+  } else {
+    // 🔥 chat ended by other user
+    forceCloseChat("Chat ended");
+  }
+});
+;
 
   } else {
     userId = null;
@@ -574,6 +580,18 @@ astrologerView.classList.add("hidden");
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 }
+function forceCloseChat(message){
+  chatId = null;
+  partnerId = null;
+
+  if(chatRef) chatRef.off();
+
+  chatView.classList.add("hidden");
+  clientView.classList.toggle("hidden", role !== "client");
+  astrologerView.classList.toggle("hidden", role !== "astrologer");
+
+  alert(message);
+}
 
 
 /* ================= SEND MESSAGE ================= */
@@ -589,17 +607,23 @@ function sendMessage(){
 function exitChat(){
   if(!chatId) return;
 
-  db.ref("currentChat/"+userId).remove();
-  if(partnerId) db.ref("currentChat/"+partnerId).remove();
+  const ok = confirm(
+    "End this chat?\n\n" +
+    "• Chat will close for both users\n" +
+    "• Credits will still be deducted"
+  );
+  if(!ok) return;
 
-  db.ref("presence/"+userId).update({ busy:false });
+  // remove chat for BOTH users
+  db.ref("currentChat/" + userId).remove();
+  if(partnerId) db.ref("currentChat/" + partnerId).remove();
 
-  chatId = null;
-  partnerId = null;
-  chatView.classList.add("hidden");
+  // free astrologer
+  db.ref("presence/" + userId).update({ busy:false });
 
-  if(chatRef) chatRef.off();
+  forceCloseChat("You ended the chat");
 }
+
 
 
 /* ================= Reset ================= */
