@@ -128,13 +128,41 @@ body {
 }
 
 /* ---------- INPUTS ---------- */
-input, textarea, button {
+input, textarea {
   padding: 10px;
   margin-top: 6px;
   width: 100%;
   border-radius: 10px;
   border: 1px solid var(--border);
   font-size: 14px;
+}
+
+button {
+  padding: 12px;
+  margin-top: 10px;
+  width: 100%;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, background .2s;
+}
+
+button:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(79,70,229,.25);
+}
+
+button:active {
+  transform: scale(.97);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 input:focus, textarea:focus {
@@ -230,9 +258,9 @@ input:focus, textarea:focus {
     <input id="email" placeholder="Email">
     <input id="password" type="password" placeholder="Password">
     <input id="username" placeholder="Username (unique)">
-    <button onclick="signup()">Signup</button>
-    <button onclick="login()">Login</button>
-    <button onclick="googleLogin()">Sign in with Google</button>
+    <button type="button" onclick="signup()">Signup</button>
+    <button type="button" onclick="login()">Login</button>
+    <button type="button" onclick="googleLogin()">Sign in with Google</button>
     <p id="error"></p>
   </div>
 
@@ -396,40 +424,63 @@ function secretTap(){
 
 /* ================= SIGNUP ================= */
 function signup(){
-  const e = emailInput.value;
-  const p = passwordInput.value;
+  const e = emailInput.value.trim();
+  const p = passwordInput.value.trim();
   const u = usernameInput.value.trim().toLowerCase();
-  if(!u) return showError("Username required");
+
+  if(!e || !p || !u){
+    showError("Email, password and username are required");
+    return;
+  }
+
+  if(p.length < 6){
+    showError("Password must be at least 6 characters");
+    return;
+  }
 
   db.ref("presence").once("value").then(snap=>{
-    let taken=false;
-    snap.forEach(c=>{ if(c.val().username===u) taken=true; });
-    if(taken) return showError("Username already in use");
+    let taken = false;
+    snap.forEach(c=>{
+      if(c.val().username === u) taken = true;
+    });
+
+    if(taken){
+      showError("Username already taken");
+      return;
+    }
 
     auth.createUserWithEmailAndPassword(e,p)
       .then(res=>{
         userId = res.user.uid;
-db.ref("presence/"+userId).set({
-  username: "user_"+userId.slice(0,6),
-  speciality: "",
-  description: "",
-  avatar: res.user.photoURL || "",
-  role: "user",
-  busy: false,
-  online: false,
-  lastSeen: Date.now(),
-
-  // 🔥 CREDITS SYSTEM
-  credits: 20,
-  ratePerMinute: 2
-});
-      }).catch(err=>showError(err.message));
+        return db.ref("presence/"+userId).set({
+          username: u,
+          speciality: "",
+          description: "",
+          avatar: "",
+          role: "user",
+          busy: false,
+          online: false,
+          lastSeen: Date.now(),
+          credits: 20,
+          ratePerMinute: 2
+        });
+      })
+      .catch(err=>showError(err.message));
   });
 }
 
 /* ================= LOGIN ================= */
 function login(){
-  auth.signInWithEmailAndPassword(emailInput.value,passwordInput.value).catch(err=>showError(err.message));
+  const e = emailInput.value.trim();
+  const p = passwordInput.value.trim();
+
+  if(!e || !p){
+    showError("Email and password required");
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(e,p)
+    .catch(err=>showError(err.message));
 }
 
 /* ================= GOOGLE LOGIN ================= */
