@@ -10,12 +10,14 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
 <style>
 :root {
   --primary: #4f46e5;
   --primary-dark: #4338ca;
-  --bg: #f4f6f8;
+  --bg: #ffffff;
   --card: #ffffff;
   --border: #e5e7eb;
   --text: #111827;
@@ -45,7 +47,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  animation: slideInLeft 0.4s ease;
+animation: slideInLeft 0.55s cubic-bezier(.22,.61,.36,1);
 }
 
 .sidebar h2 {
@@ -58,7 +60,7 @@ body {
   background: var(--primary);
   color: white;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: 14px;
   font-weight: 500;
   transition: transform .15s ease, box-shadow .15s ease, background .2s;
 }
@@ -109,7 +111,7 @@ body {
   padding: 18px;
   margin-bottom: 16px;
   box-shadow: 0 10px 24px rgba(0,0,0,.06);
-  animation: cardIn .35s ease;
+animation: cardIn .45s cubic-bezier(.22,.61,.36,1);
 }
 
 .card:hover {
@@ -243,10 +245,18 @@ input:focus, textarea:focus {
 <div class="sidebar">
   <h2>AstroLab</h2>
   <div id="secretReset" style="height:20px; opacity:0;" onclick="secretTap()"></div>
-  <button onclick="switchRole('client')">Client</button>
-  <button onclick="switchRole('astrologer')">Astrologer</button>
-  <button onclick="toggleSettings()">Settings</button>
-  <button onclick="logout()">Logout</button>
+  <button onclick="switchRole('client')">
+  <i class="fa-solid fa-user"></i> Client
+</button>
+  <button onclick="switchRole('astrologer')">
+  <i class="fa-solid fa-star"></i> Astrologer
+</button>
+  <button onclick="toggleSettings()">
+  <i class="fa-solid fa-gear"></i> Settings
+</button>
+<button onclick="logout()">
+  <i class="fa-solid fa-right-from-bracket"></i> Logout
+</button>
 </div>
 
 <div class="main">
@@ -303,8 +313,12 @@ input:focus, textarea:focus {
   <div class="chat-box" id="messages"></div>
     <input id="msgInput" placeholder="Type message..." />
     <br>
-    <button onclick="sendMessage()">Send</button>
-    <button onclick="exitChat()">Exit Chat</button>
+    <button onclick="sendMessage()">
+  <i class="fa-solid fa-paper-plane"></i> Send
+</button>
+    <button onclick="exitChat()">
+  <i class="fa-solid fa-xmark"></i> End Chat
+</button>
   </div>
 
 </div>
@@ -465,7 +479,8 @@ function signup(){
           online: false,
           lastSeen: Date.now(),
           credits: 20,
-          ratePerMinute: 2
+          ratePerMinute: 2,
+          firstChatUsed: false
         });
       })
       .catch(err=>showError(err.message));
@@ -500,6 +515,7 @@ function googleLogin(){
   busy: false,
   online: false,
   lastSeen: Date.now()
+  firstChatUsed: false
 });
 
     });
@@ -676,7 +692,10 @@ div.innerHTML = `
   <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
   <strong>${uname}</strong><br>
   <small>${data.speciality || "Astrology"}</small><br>
-  <small><strong>${data.ratePerMinute || 0}</strong> credits / min</small>
+<small>
+  <strong>${data.ratePerMinute}</strong> credits / min
+  <span style="color:#16a34a;font-weight:600;">• 5% OFF first chat</span>
+</small>
   <p>${data.description || ""}</p>
   <button onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
     ${data.busy?"disabled":""}>
@@ -850,35 +869,50 @@ function exitChat(){
 
   forceCloseChat("You ended the chat");
 }
-function startCreditTimer(clientId, astrologerId){
-  const clientCreditsRef = db.ref("presence/"+clientId+"/credits");
-  const astroCreditsRef = db.ref("presence/"+astrologerId+"/credits");
-  const rateRef = db.ref("presence/"+astrologerId+"/ratePerMinute");
-  
- db.ref("chats/"+chatId+"/meta/earned").set(0);
-  creditInterval = setInterval(async () => {
-    const rate = (await rateRef.get()).val() || 1;
-    const clientCredits = (await clientCreditsRef.get()).val() || 0;
+async function startCreditTimer(clientId, astrologerId){
+  const clientRef = db.ref("presence/"+clientId);
+  const astroRef = db.ref("presence/"+astrologerId);
 
-    // 🔥 IMMEDIATE END CONDITION
-    if(clientCredits < rate){
+  db.ref("chats/"+chatId+"/meta/earned").set(0);
+
+  creditInterval = setInterval(async () => {
+    const clientSnap = await clientRef.get();
+    const astroSnap = await astroRef.get();
+
+    const credits = clientSnap.val().credits || 0;
+    const rate = astroSnap.val().ratePerMinute || 1;
+    const firstChatUsed = clientSnap.val().firstChatUsed;
+
+    let finalRate = rate;
+
+    // 🔥 5% discount ONLY first chat
+    if(firstChatUsed === false){
+      finalRate = Math.ceil(rate * 0.95);
+    }
+
+    if(credits < finalRate){
       endChat("Client ran out of credits");
       return;
     }
 
-    await clientCreditsRef.set(clientCredits - rate);
-    await astroCreditsRef.transaction(c => (c || 0) + rate);
-    db.ref("chats/"+chatId+"/meta/earned")
-  .transaction(e => (e || 0) + rate);
+    await clientRef.update({
+      credits: credits - finalRate,
+      firstChatUsed: true
+    });
 
-    // track earnings
+    await astroRef.child("credits")
+      .transaction(c => (c || 0) + finalRate);
+
+    db.ref("chats/"+chatId+"/meta/earned")
+      .transaction(e => (e || 0) + finalRate);
+
     const todayKey = new Date().toISOString().slice(0,10);
     db.ref(`earnings/${astrologerId}/${todayKey}`)
-      .transaction(e => (e || 0) + rate);
+      .transaction(e => (e || 0) + finalRate);
 
   }, 60000);
 }
-  
+
 function endChatDueToCredits(){
   clearInterval(creditInterval);
   creditInterval = null;
