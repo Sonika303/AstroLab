@@ -226,21 +226,19 @@ input:focus, textarea:focus {
 
 </style>
 </head>
-  
-  <div id="settingsPanel" class="settings">
-  <h3>Account Settings</h3>
+<body>
 
+  <body>
+
+<div id="settingsPanel" class="settings">
+  <h3>Account Settings</h3>
   <img id="avatarPreview" class="avatar" src="" alt="Avatar">
   <input type="file" id="avatarInput" accept="image/*">
-
   <input id="s_name" placeholder="Display Name">
   <input id="s_speciality" placeholder="Speciality">
   <textarea id="s_desc" placeholder="Description"></textarea>
-
   <button onclick="saveSettings()">Save</button>
 </div>
-
-<body>
 
 <div class="sidebar">
   <h2>AstroLab</h2>
@@ -880,13 +878,7 @@ function startCreditTimer(clientId, astrologerId){
 
   }, 60000);
 }
-
-// 🔥 track today's earnings
-const todayKey = new Date().toISOString().slice(0,10);
-db.ref(`earnings/${astrologerId}/${todayKey}`)
-  .transaction(e => (e || 0) + rate);
-  }, 60000); // ⏱️ per minute
-}
+  
 function endChatDueToCredits(){
   clearInterval(creditInterval);
   creditInterval = null;
