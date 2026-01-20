@@ -391,13 +391,17 @@ db.ref("currentChat/" + userId).on("value", snap => {
 });
 ;
 
-  } else {
+} else {
   userId = null;
+  chatId = null;
+  partnerId = null;
 
   authCard.classList.remove("hidden");
   clientView.classList.add("hidden");
   astrologerView.classList.add("hidden");
   chatView.classList.add("hidden");
+
+  document.getElementById("settingsPanel").classList.remove("open");
 }
 
 });
