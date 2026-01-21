@@ -385,9 +385,11 @@ auth.onAuthStateChanged(user => {
     loadUserCache();
     watchCredits();
     watchAstroRate();
-   if(role === "astrologer"){
-  watchTodayEarnings();
-}
+ setTimeout(()=>{
+  if(role === "astrologer"){
+    watchTodayEarnings();
+  }
+}, 300);
 
  // 🔥 CHAT OPEN + CHAT END LISTENER
 db.ref("currentChat/" + userId).off();
@@ -626,9 +628,10 @@ function switchRole(r){
   astrologerView.classList.toggle("hidden", r!=="astrologer");
   chatView.classList.add("hidden");
 
-  if(r === "astrologer"){
-    watchTodayEarnings();
-  }
+if(r === "astrologer"){
+  setTimeout(watchTodayEarnings, 200);
+}
+
 }
 
 /* ================= ASTROLOGER ONLINE ================= */
@@ -932,7 +935,7 @@ async function startCreditTimer(clientId, astrologerId){
     db.ref("chats/"+chatId+"/meta/earned")
       .transaction(e => (e || 0) + finalRate);
 
-    const todayKey = new Date().toISOString().slice(0,10);
+    const todayKey = new Date().toLocaleDateString("en-CA");
     db.ref(`earnings/${astrologerId}/${todayKey}`)
       .transaction(e => (e || 0) + finalRate);
 
@@ -1009,13 +1012,27 @@ function updateRate(){
   input.value = "";
 }
 
-  function watchTodayEarnings(){
+  let earningsRef = null;
+
+function watchTodayEarnings(){
+  if(!userId || role !== "astrologer") return;
+
   const todayKey = new Date().toISOString().slice(0,10);
-  db.ref(`earnings/${userId}/${todayKey}`).on("value", snap=>{
+
+  if(earningsRef){
+    earningsRef.off(); // 🔥 REMOVE OLD LISTENER
+  }
+
+  earningsRef = db.ref(`earnings/${userId}/${todayKey}`);
+
+  earningsRef.on("value", snap=>{
     const el = document.getElementById("todayEarnings");
-    if(el) el.textContent = snap.val() || 0;
+    if(el){
+      el.textContent = snap.val() || 0;
+    }
   });
 }
+
 function startChatTimer(){
   stopChatTimer();
   chatTimerInterval = setInterval(()=>{
