@@ -500,21 +500,36 @@ function login(){
 }
 
 /* ================= GOOGLE LOGIN ================= */
-db.ref("presence/"+userId).set({
-  username: "user_" + userId.slice(0,6),
-  speciality: "",
-  description: "",
-  avatar: "",
-  role: "user",
-  busy: false,
-  online: false,
-  lastSeen: Date.now(),
-  credits: 20,
-  ratePerMinute: 2,
-  firstChatUsed: false
-});
+function googleLogin(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+
+  auth.signInWithPopup(provider)
+    .then(res=>{
+      userId = res.user.uid;
+
+      const ref = db.ref("presence/" + userId);
+      ref.once("value").then(snap=>{
+        if(!snap.exists()){
+          ref.set({
+            username: "user_" + userId.slice(0,6),
+            speciality: "",
+            description: "",
+            avatar: "",
+            role: "user",
+            busy: false,
+            online: false,
+            lastSeen: Date.now(),
+            credits: 20,
+            ratePerMinute: 2,
+            firstChatUsed: false
+          });
+        }
+      });
+    })
+    .catch(err=>{
+      console.error(err);
+      showError(err.message);
     });
-  }).catch(err=>showError(err.message));
 }
 
 /* ================= LOAD PROFILE ================= */
