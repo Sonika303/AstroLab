@@ -385,7 +385,9 @@ auth.onAuthStateChanged(user => {
     loadUserCache();
     watchCredits();
     watchAstroRate();
-    watchTodayEarnings();
+   if(role === "astrologer"){
+  watchTodayEarnings();
+}
 
  // 🔥 CHAT OPEN + CHAT END LISTENER
 db.ref("currentChat/" + userId).off();
@@ -619,9 +621,14 @@ function switchRole(r){
   }
 
   role = r;
+
   clientView.classList.toggle("hidden", r!=="client");
   astrologerView.classList.toggle("hidden", r!=="astrologer");
   chatView.classList.add("hidden");
+
+  if(r === "astrologer"){
+    watchTodayEarnings();
+  }
 }
 
 /* ================= ASTROLOGER ONLINE ================= */
@@ -818,12 +825,29 @@ function openChat(id){
   
 function forceCloseChat(message){
   stopChatTimer();
-  if(chatRef){ chatRef.off(); chatRef = null; }
+
+  const endedChatId = chatId; // ✅ SAVE FIRST
+
+  if(chatRef){
+    chatRef.off();
+    chatRef = null;
+  }
 
   chatId = null;
   partnerId = null;
 
   chatView.classList.add("hidden");
+
+  if(role === "astrologer" && endedChatId){
+    db.ref("chats/"+endedChatId+"/meta/earned")
+      .once("value")
+      .then(snap=>{
+        const earned = snap.val() || 0;
+        alert(`Chat ended.\nYou earned ${earned} credits.`);
+      });
+  } else {
+    alert(message);
+  }
 
   if(role === "client"){
     clientView.classList.remove("hidden");
@@ -832,14 +856,6 @@ function forceCloseChat(message){
     astrologerView.classList.remove("hidden");
     clientView.classList.add("hidden");
   }
-if(role === "astrologer"){
-  db.ref("chats/"+chatId+"/meta/earned").once("value").then(snap=>{
-    const earned = snap.val() || 0;
-    alert(`Chat ended.\nYou earned ${earned} credits.`);
-  });
-  return;
-}
-  alert(message);
 }
 
 /* ================= SEND MESSAGE ================= */
