@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-  
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
 <style>
@@ -276,7 +276,7 @@ input:focus, textarea:focus {
     <h3>Online Astrologers</h3>
     <div id="astrologerList"></div>
   </div>
-  
+
   <p><strong>Your Credits:</strong> <span id="creditBalance">0</span></p>
 <button onclick="addCredits(50)">Add 50 Credits</button>
 <hr>
@@ -294,7 +294,7 @@ input:focus, textarea:focus {
   <strong>Today's Earnings:</strong>
   <span id="todayEarnings">0</span> credits
 </p>
-  
+
     <label>
       <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
     </label>
@@ -385,6 +385,9 @@ auth.onAuthStateChanged(user => {
     loadUserCache();
     watchCredits();
     watchAstroRate();
+   if(role === "astrologer"){
+  watchTodayEarnings();
+}
  setTimeout(()=>{
   if(role === "astrologer"){
     watchTodayEarnings();
@@ -628,6 +631,9 @@ function switchRole(r){
   astrologerView.classList.toggle("hidden", r!=="astrologer");
   chatView.classList.add("hidden");
 
+  if(r === "astrologer"){
+    watchTodayEarnings();
+  }
 if(r === "astrologer"){
   setTimeout(watchTodayEarnings, 200);
 }
@@ -776,13 +782,9 @@ function acceptChat(queueKey, clientId){
   });
 
   db.ref("requests/"+userId+"/"+queueKey).remove();
-  
-// 🔥 only astrologer starts the timer
-if(role === "astrologer"){
-  startCreditTimer(clientId, userId);
-}
-openChat(chatId);
 
+startCreditTimer(clientId, userId);
+  openChat(chatId);
 }
 function addCredits(amount){
   const ref = db.ref("presence/"+userId+"/credits");
@@ -829,18 +831,9 @@ function openChat(id){
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 }
-  if(creditInterval){
-  clearInterval(creditInterval);
-  creditInterval = null;
-}
 
 function forceCloseChat(message){
   stopChatTimer();
-  
-  if(creditInterval){
-  clearInterval(creditInterval);
-  creditInterval = null;
-}
 
   const endedChatId = chatId; // ✅ SAVE FIRST
 
@@ -932,6 +925,7 @@ async function startCreditTimer(clientId, astrologerId){
       finalRate = Math.ceil(rate * 0.95);
     }
 
+    if(credits < finalRate){
       endChat("Client ran out of credits");
       return;
     }
@@ -947,6 +941,7 @@ async function startCreditTimer(clientId, astrologerId){
     db.ref("chats/"+chatId+"/meta/earned")
       .transaction(e => (e || 0) + finalRate);
 
+    const todayKey = new Date().toISOString().slice(0,10);
     const todayKey = new Date().toLocaleDateString("en-CA");
     db.ref(`earnings/${astrologerId}/${todayKey}`)
       .transaction(e => (e || 0) + finalRate);
@@ -982,7 +977,7 @@ function endChatDueToCredits(){
 
   alert("All users reset");
 }
-  
+
 /* ================= LOAD USERNAMES CACHE ================= */
 function loadUserCache(){
   db.ref("presence").once("value").then(snap=>{
@@ -1024,12 +1019,14 @@ function updateRate(){
   input.value = "";
 }
 
+  function watchTodayEarnings(){
   let earningsRef = null;
 
 function watchTodayEarnings(){
   if(!userId || role !== "astrologer") return;
 
-const todayKey = new Date().toLocaleDateString("en-CA");
+  const todayKey = new Date().toISOString().slice(0,10);
+  db.ref(`earnings/${userId}/${todayKey}`).on("value", snap=>{
 
   if(earningsRef){
     earningsRef.off(); // 🔥 REMOVE OLD LISTENER
@@ -1039,6 +1036,7 @@ const todayKey = new Date().toLocaleDateString("en-CA");
 
   earningsRef.on("value", snap=>{
     const el = document.getElementById("todayEarnings");
+    if(el) el.textContent = snap.val() || 0;
     if(el){
       el.textContent = snap.val() || 0;
     }
@@ -1062,13 +1060,8 @@ function stopChatTimer(){
     chatTimerInterval = null;
   }
 }
-function endChat(reason = "Chat ended"){
-  // stop local timers
-  if(chatTimerInterval){
-    clearInterval(chatTimerInterval);
-    chatTimerInterval = null;
-  }
-
+function endChat(reason){
+  stopChatTimer();
   if(creditInterval){
     clearInterval(creditInterval);
     creditInterval = null;
@@ -1076,35 +1069,12 @@ function endChat(reason = "Chat ended"){
 
   if(!chatId) return;
 
-  const endedChatId = chatId;
-  const otherUserId = partnerId;
-
-  // mark chat as ended (authoritative)
-  db.ref("chats/" + endedChatId + "/meta").update({
+  db.ref("chats/"+chatId+"/meta").update({
     active: false,
     endedAt: Date.now(),
     endReason: reason
   });
-
-  // remove live chat pointers (BOTH users)
-  db.ref("currentChat/" + userId).remove();
-  if(otherUserId){
-    db.ref("currentChat/" + otherUserId).remove();
-  }
-
-  // free astrologer
-  const astrologerToFree =
-    role === "astrologer" ? userId : otherUserId;
-
-  if(astrologerToFree){
-    db.ref("presence/" + astrologerToFree).update({ busy: false });
-  }
-
-  // reset local state
-  chatId = null;
-  partnerId = null;
 }
-
 
 </script>
 
