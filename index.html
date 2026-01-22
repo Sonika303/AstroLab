@@ -777,8 +777,12 @@ function acceptChat(queueKey, clientId){
 
   db.ref("requests/"+userId+"/"+queueKey).remove();
   
-startCreditTimer(clientId, userId);
-  openChat(chatId);
+// 🔥 only astrologer starts the timer
+if(role === "astrologer"){
+  startCreditTimer(clientId, userId);
+}
+openChat(chatId);
+
 }
 function addCredits(amount){
   const ref = db.ref("presence/"+userId+"/credits");
@@ -825,9 +829,18 @@ function openChat(id){
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 }
-  
+  if(creditInterval){
+  clearInterval(creditInterval);
+  creditInterval = null;
+}
+
 function forceCloseChat(message){
   stopChatTimer();
+  
+  if(creditInterval){
+  clearInterval(creditInterval);
+  creditInterval = null;
+}
 
   const endedChatId = chatId; // ✅ SAVE FIRST
 
@@ -919,7 +932,6 @@ async function startCreditTimer(clientId, astrologerId){
       finalRate = Math.ceil(rate * 0.95);
     }
 
-    if(credits < finalRate){
       endChat("Client ran out of credits");
       return;
     }
@@ -1017,7 +1029,7 @@ function updateRate(){
 function watchTodayEarnings(){
   if(!userId || role !== "astrologer") return;
 
-  const todayKey = new Date().toISOString().slice(0,10);
+const todayKey = new Date().toLocaleDateString("en-CA");
 
   if(earningsRef){
     earningsRef.off(); // 🔥 REMOVE OLD LISTENER
@@ -1050,8 +1062,13 @@ function stopChatTimer(){
     chatTimerInterval = null;
   }
 }
-function endChat(reason){
-  stopChatTimer();
+function endChat(reason = "Chat ended"){
+  // stop local timers
+  if(chatTimerInterval){
+    clearInterval(chatTimerInterval);
+    chatTimerInterval = null;
+  }
+
   if(creditInterval){
     clearInterval(creditInterval);
     creditInterval = null;
@@ -1059,12 +1076,35 @@ function endChat(reason){
 
   if(!chatId) return;
 
-  db.ref("chats/"+chatId+"/meta").update({
+  const endedChatId = chatId;
+  const otherUserId = partnerId;
+
+  // mark chat as ended (authoritative)
+  db.ref("chats/" + endedChatId + "/meta").update({
     active: false,
     endedAt: Date.now(),
     endReason: reason
   });
+
+  // remove live chat pointers (BOTH users)
+  db.ref("currentChat/" + userId).remove();
+  if(otherUserId){
+    db.ref("currentChat/" + otherUserId).remove();
+  }
+
+  // free astrologer
+  const astrologerToFree =
+    role === "astrologer" ? userId : otherUserId;
+
+  if(astrologerToFree){
+    db.ref("presence/" + astrologerToFree).update({ busy: false });
+  }
+
+  // reset local state
+  chatId = null;
+  partnerId = null;
 }
+
 
 </script>
 
