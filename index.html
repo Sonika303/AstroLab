@@ -783,7 +783,9 @@ function acceptChat(queueKey, clientId){
 
   db.ref("requests/"+userId+"/"+queueKey).remove();
 
-startCreditTimer(clientId, userId);
+if(role === "astrologer"){
+  startCreditTimer(clientId, userId);
+}
   openChat(chatId);
 }
 function addCredits(amount){
@@ -941,21 +943,11 @@ async function startCreditTimer(clientId, astrologerId){
     db.ref("chats/"+chatId+"/meta/earned")
       .transaction(e => (e || 0) + finalRate);
 
-    const todayKey = new Date().toISOString().slice(0,10);
     const todayKey = new Date().toLocaleDateString("en-CA");
     db.ref(`earnings/${astrologerId}/${todayKey}`)
       .transaction(e => (e || 0) + finalRate);
 
   }, 60000);
-}
-
-function endChatDueToCredits(){
-  clearInterval(creditInterval);
-  creditInterval = null;
-
-  alert("Credits finished. Chat ended.");
-
-  db.ref("chats/"+chatId+"/meta/active").set(false);
 }
 
 /* ================= Reset ================= */
@@ -1018,28 +1010,21 @@ function updateRate(){
 
   input.value = "";
 }
-
-  function watchTodayEarnings(){
-  let earningsRef = null;
+let earningsRef = null;
 
 function watchTodayEarnings(){
   if(!userId || role !== "astrologer") return;
 
-  const todayKey = new Date().toISOString().slice(0,10);
-  db.ref(`earnings/${userId}/${todayKey}`).on("value", snap=>{
+  const todayKey = new Date().toLocaleDateString("en-CA");
 
   if(earningsRef){
-    earningsRef.off(); // 🔥 REMOVE OLD LISTENER
+    earningsRef.off();
   }
 
   earningsRef = db.ref(`earnings/${userId}/${todayKey}`);
-
   earningsRef.on("value", snap=>{
     const el = document.getElementById("todayEarnings");
     if(el) el.textContent = snap.val() || 0;
-    if(el){
-      el.textContent = snap.val() || 0;
-    }
   });
 }
 
