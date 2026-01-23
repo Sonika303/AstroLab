@@ -712,7 +712,11 @@ div.innerHTML = `
   <small>${data.speciality || "Astrology"}</small><br>
 <small>
   <strong>${data.ratePerMinute}</strong> credits / min
-  <span style="color:#16a34a;font-weight:600;">• 5% OFF first chat</span>
+  ${
+    userCache.__firstChatUsed === false
+    ? `<span style="color:#16a34a;font-weight:600;">• 10% OFF first chat</span>`
+    : ``
+  }
 </small>
   <p>${data.description || ""}</p>
   <button onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
@@ -905,6 +909,8 @@ async function startCreditTimer(clientId, astrologerId){
   const astroRef = db.ref("presence/"+astrologerId);
 
   db.ref("chats/"+chatId+"/meta/earned").set(0);
+  // 🔥 Mark first chat as used ONCE
+db.ref("presence/"+clientId+"/firstChatUsed").set(true);
 
   creditInterval = setInterval(async () => {
     const clientSnap = await clientRef.get();
@@ -916,10 +922,13 @@ async function startCreditTimer(clientId, astrologerId){
 
     let finalRate = rate;
 
-    // 🔥 5% discount ONLY first chat
-    if(firstChatUsed === false){
-      finalRate = Math.ceil(rate * 0.95);
-    }
+// 🔥 10% discount ONLY for first chat (permanent)
+let discountApplied = false;
+
+if(firstChatUsed === false){
+  finalRate = Math.ceil(rate * 0.90); // 🔥 10% OFF
+  discountApplied = true;
+}
 
     if(credits < finalRate){
       endChat("Client ran out of credits");
@@ -927,9 +936,8 @@ async function startCreditTimer(clientId, astrologerId){
     }
 
     await clientRef.update({
-      credits: credits - finalRate,
-      firstChatUsed: true
-    });
+  credits: credits - finalRate
+});
 
     await astroRef.child("credits")
       .transaction(c => (c || 0) + finalRate);
@@ -967,7 +975,12 @@ async function startCreditTimer(clientId, astrologerId){
 /* ================= LOAD USERNAMES CACHE ================= */
 function loadUserCache(){
   db.ref("presence").once("value").then(snap=>{
-    snap.forEach(child=>{ userCache[child.key] = child.val().username; });
+    snap.forEach(child=>{
+      userCache[child.key] = child.val().username;
+      if(child.key === userId){
+        userCache.__firstChatUsed = child.val().firstChatUsed;
+      }
+    });
   });
 }
   function watchCredits(){
