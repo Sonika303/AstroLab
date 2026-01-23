@@ -388,23 +388,23 @@ auth.onAuthStateChanged(user => {
    if(role === "astrologer"){
   watchTodayEarnings();
 }
- setTimeout(()=>{
-  if(role === "astrologer"){
-    watchTodayEarnings();
-  }
-}, 300);
 
  // 🔥 CHAT OPEN + CHAT END LISTENER
 db.ref("currentChat/" + userId).off();
+db.ref("currentChat/" + userId).off();
 db.ref("currentChat/" + userId).on("value", snap => {
-  if (snap.exists()) {
-    if (!chatId || chatId !== snap.val()) {
-      openChat(snap.val());
+  if (!snap.exists()) return;
+
+  const id = snap.val();
+  db.ref("chats/" + id + "/meta").once("value").then(metaSnap => {
+    const meta = metaSnap.val();
+    if (meta && meta.active === true) {
+      openChat(id);
+    } else {
+      // 🔥 CLEAN STALE CHAT (NO ALERT)
+      db.ref("currentChat/" + userId).remove();
     }
-  } else {
-    // 🔥 chat ended by other user
-    forceCloseChat("Chat ended");
-  }
+  });
 });
 ;
 
@@ -630,14 +630,6 @@ function switchRole(r){
   clientView.classList.toggle("hidden", r!=="client");
   astrologerView.classList.toggle("hidden", r!=="astrologer");
   chatView.classList.add("hidden");
-
-  if(r === "astrologer"){
-    watchTodayEarnings();
-  }
-if(r === "astrologer"){
-  setTimeout(watchTodayEarnings, 200);
-}
-
 }
 
 /* ================= ASTROLOGER ONLINE ================= */
@@ -857,7 +849,9 @@ function forceCloseChat(message){
         alert(`Chat ended.\nYou earned ${earned} credits.`);
       });
   } else {
-    alert(message);
+    if(message && message !== "silent"){
+  alert(message);
+}
   }
 
   if(role === "client"){
@@ -904,7 +898,7 @@ function exitChat(){
     db.ref("presence/"+partnerId).update({ busy:false });
   }
 
-  forceCloseChat("You ended the chat");
+ forceCloseChat("silent");
 }
 async function startCreditTimer(clientId, astrologerId){
   const clientRef = db.ref("presence/"+clientId);
