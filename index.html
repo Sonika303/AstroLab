@@ -805,7 +805,7 @@ function buyCredits(credits){
     return;
   }
 
-  fetch("https://YOUR_BACKEND_URL/create-order", {
+  fetch("http://localhost:3000/create-order", {  // or your live server URL
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -816,7 +816,7 @@ function buyCredits(credits){
   .then(res => res.json())
   .then(order => {
     const options = {
-      key: "RAZORPAY_KEY_ID",
+      key: "rzp_test_S7fa84e8duHqi0",
       amount: order.amount,
       currency: "INR",
       name: "AstroLab",
@@ -833,7 +833,7 @@ function buyCredits(credits){
   .catch(() => alert("Payment failed to start"));
 }
 function verifyPayment(payment, credits){
-  fetch("https://YOUR_BACKEND_URL/verify-payment", {
+  fetch("http://localhost:3000/verify-payment", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
