@@ -385,9 +385,6 @@ auth.onAuthStateChanged(user => {
     loadUserCache();
     watchCredits();
     watchAstroRate();
-   if(role === "astrologer"){
-  watchTodayEarnings();
-}
 
  // 🔥 CHAT OPEN + CHAT END LISTENER
 db.ref("currentChat/" + userId).off();
@@ -627,9 +624,19 @@ function switchRole(r){
 
   role = r;
 
-  clientView.classList.toggle("hidden", r!=="client");
-  astrologerView.classList.toggle("hidden", r!=="astrologer");
+  clientView.classList.toggle("hidden", r !== "client");
+  astrologerView.classList.toggle("hidden", r !== "astrologer");
   chatView.classList.add("hidden");
+
+  // 🔥 FIX: start earnings listener when astrologer view opens
+  if(r === "astrologer"){
+    watchTodayEarnings();
+  } else {
+    if(earningsRef){
+      earningsRef.off();
+      earningsRef = null;
+    }
+  }
 }
 
 /* ================= ASTROLOGER ONLINE ================= */
