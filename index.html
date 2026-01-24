@@ -710,7 +710,7 @@ db.ref("presence").on("value", snap=>{
   astrologerList.innerHTML="";
   snap.forEach(child=>{
     const data = child.val();
-if(data.role === "astrologer"){
+if(data.role === "astrologer" && data.online === true){
       const uname = data.username || child.key;
       const div=document.createElement("div");
       div.className="card";
@@ -811,23 +811,26 @@ function openChat(id){
   astrologerView.classList.add("hidden");
   chatView.classList.remove("hidden");
   messagesDiv.innerHTML = "";
-  chatStartTime = Date.now();
-  startChatTimer();
-
 
   const metaRef = db.ref("chats/"+id+"/meta");
 
   // 🔥 REAL-TIME END DETECTION
-  metaRef.on("value", snap=>{
-    const meta = snap.val();
+metaRef.on("value", snap=>{
+  const meta = snap.val();
   if(!meta || meta.active === false){
-  metaRef.off();
-  forceCloseChat(meta?.endReason || "Chat ended");
-  return;
-}
+    metaRef.off();
+    forceCloseChat(meta?.endReason || "Chat ended");
+    return;
+  }
 
-    partnerId = meta.client === userId ? meta.astrologer : meta.client;
-  });
+  partnerId = meta.client === userId ? meta.astrologer : meta.client;
+
+  // 🔥 FIX TIMER RESET (USE ORIGINAL START TIME)
+  if(!chatStartTime && meta.started){
+    chatStartTime = meta.started;
+    startChatTimer();
+  }
+});
 
   if(chatRef) chatRef.off();
   chatRef = db.ref("chats/"+id+"/messages");
