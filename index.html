@@ -387,6 +387,11 @@ auth.onAuthStateChanged(user => {
 if(savedRole){
   switchRole(savedRole);
 }
+    const wasOnline = localStorage.getItem(ONLINE_KEY);
+if(savedRole === "astrologer" && wasOnline === "1"){
+  toggleOnline(true);
+  document.querySelector("#astrologerView input[type=checkbox]").checked = true;
+}
     loadUserCache();
     watchCredits();
     watchAstroRate();
@@ -628,6 +633,16 @@ function switchRole(r){
   clientView.classList.toggle("hidden", r !== "client");
   astrologerView.classList.toggle("hidden", r !== "astrologer");
   chatView.classList.add("hidden");
+
+  // 🔥 START EARNINGS LISTENER WHEN ASTROLOGER VIEW OPENS
+  if(r === "astrologer"){
+    watchTodayEarnings();
+  } else {
+    if(earningsRef){
+      earningsRef.off();
+      earningsRef = null;
+    }
+  }
 }
 
 /* ================= ASTROLOGER ONLINE ================= */
@@ -701,7 +716,10 @@ if(data.role === "astrologer"){
       div.className="card";
 div.innerHTML = `
   <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
-  <strong>${uname}</strong><br>
+  <strong>${uname}</strong>
+<span style="font-size:11px;color:${data.online ? '#16a34a' : '#9ca3af'}">
+  ● ${data.online ? "ONLINE" : "OFFLINE"}
+</span><br>
   <small>${data.speciality || "Astrology"}</small><br>
 <small>
   <strong>${data.ratePerMinute}</strong> credits / min
@@ -712,8 +730,9 @@ div.innerHTML = `
   }
 </small>
   <p>${data.description || ""}</p>
-  <button onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
-    ${data.busy?"disabled":""}>
+ <button onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
+  ${(!data.online || data.busy) ? "disabled" : ""}>
+
     ${data.busy ? "Busy" : "Request Chat"}
   </button>
 `;
@@ -913,7 +932,15 @@ db.ref("presence/"+clientId+"/firstChatUsed").set(true);
     const rate = astroSnap.val().ratePerMinute || 1;
     const firstChatUsed = clientSnap.val().firstChatUsed;
 
-    let finalRate = rate;
+let finalRate = rate;
+
+// 🔥 APPLY DISCOUNT ONLY IF FIRST CHAT
+if(firstChatUsed === false){
+  finalRate = Math.ceil(rate * 0.90); // 10% OFF
+
+  // 🔥 MARK USED ONLY ONCE (FIRST MINUTE)
+  await clientRef.update({ firstChatUsed: true });
+}
 
 // 🔥 10% discount ONLY for first chat (permanent)
 let discountApplied = false;
