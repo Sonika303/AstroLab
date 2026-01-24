@@ -12,6 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <style>
 :root {
@@ -278,7 +279,9 @@ input:focus, textarea:focus {
   </div>
 
   <p><strong>Your Credits:</strong> <span id="creditBalance">0</span></p>
-<button onclick="addCredits(50)">Add 50 Credits</button>
+<button onclick="buyCredits(50)">
+  <i class="fa-solid fa-wallet"></i> Buy 50 Credits (₹50)
+</button>
 <hr>
 
   <!-- ASTROLOGER VIEW -->
@@ -796,9 +799,57 @@ if(role === "astrologer"){
 }
   openChat(chatId);
 }
-function addCredits(amount){
-  const ref = db.ref("presence/"+userId+"/credits");
-  ref.transaction(current => (current || 0) + amount);
+function buyCredits(credits){
+  if(!userId){
+    alert("Please login first");
+    return;
+  }
+
+  fetch("https://YOUR_BACKEND_URL/create-order", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      credits,
+      userId
+    })
+  })
+  .then(res => res.json())
+  .then(order => {
+    const options = {
+      key: "RAZORPAY_KEY_ID",
+      amount: order.amount,
+      currency: "INR",
+      name: "AstroLab",
+      description: `${credits} Credits`,
+      order_id: order.id,
+      handler: function (response) {
+        verifyPayment(response, credits);
+      }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.open();
+  })
+  .catch(() => alert("Payment failed to start"));
+}
+function verifyPayment(payment, credits){
+  fetch("https://YOUR_BACKEND_URL/verify-payment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      payment,
+      userId,
+      credits
+    })
+  })
+  .then(res => res.json())
+  .then(result => {
+    if(result.success){
+      alert("Credits added successfully");
+    } else {
+      alert("Payment verification failed");
+    }
+  });
 }
 
 /* ================= OPEN CHAT ================= */
