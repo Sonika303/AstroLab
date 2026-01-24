@@ -341,6 +341,7 @@ const connectedRef = db.ref(".info/connected");
 /* ================= STATE ================= */
 let userId = null;
 let role = "client";
+const ROLE_KEY = "astrolab_role";
 let chatId = null;
 let partnerId = null;
 let chatRef = null;
@@ -382,13 +383,15 @@ auth.onAuthStateChanged(user => {
     chatView.classList.add("hidden");
 
     loadProfile();
+    const savedRole = localStorage.getItem(ROLE_KEY);
+if(savedRole){
+  switchRole(savedRole);
+}
     loadUserCache();
     watchCredits();
     watchAstroRate();
 
  // 🔥 CHAT OPEN + CHAT END LISTENER
-db.ref("currentChat/" + userId).off();
-db.ref("currentChat/" + userId).off();
 db.ref("currentChat/" + userId).on("value", snap => {
   if (!snap.exists()) return;
 
@@ -397,10 +400,7 @@ db.ref("currentChat/" + userId).on("value", snap => {
     const meta = metaSnap.val();
     if (meta && meta.active === true) {
       openChat(id);
-    } else {
-      // 🔥 CLEAN STALE CHAT (NO ALERT)
-      db.ref("currentChat/" + userId).remove();
-    }
+    } 
   });
 });
 ;
@@ -623,43 +623,31 @@ function switchRole(r){
   }
 
   role = r;
+  localStorage.setItem(ROLE_KEY, r);
 
   clientView.classList.toggle("hidden", r !== "client");
   astrologerView.classList.toggle("hidden", r !== "astrologer");
   chatView.classList.add("hidden");
-
-  // 🔥 FIX: start earnings listener when astrologer view opens
-  if(r === "astrologer"){
-    watchTodayEarnings();
-  } else {
-    if(earningsRef){
-      earningsRef.off();
-      earningsRef = null;
-    }
-  }
 }
 
 /* ================= ASTROLOGER ONLINE ================= */
 function toggleOnline(isOnline){
   const ref = db.ref("presence/"+userId);
 
-  if(isOnline){
-    connectedRef.on("value", snap=>{
-      if(snap.val() === true){
-        ref.update({
-          role: "astrologer",
-          busy: false,
-          online: true,
-          lastSeen: Date.now()
-        });
+  localStorage.setItem(ONLINE_KEY, isOnline ? "1" : "0");
 
-        ref.onDisconnect().update({
-          online: false,
-          role: "user",
-          busy: false,
-          lastSeen: Date.now()
-        });
-      }
+  if(isOnline){
+    ref.update({
+      role: "astrologer",
+      online: true,
+      busy: false,
+      lastSeen: Date.now()
+    });
+
+    ref.onDisconnect().update({
+      online: false,
+      busy: false,
+      lastSeen: Date.now()
     });
 
     startQueueListener();
@@ -667,13 +655,11 @@ function toggleOnline(isOnline){
     stopQueueListener();
     ref.update({
       online: false,
-      role: "user",
       busy: false,
       lastSeen: Date.now()
     });
   }
 }
-
 
 /* ================= QUEUE LISTENER ================= */
 function startQueueListener(){
@@ -709,7 +695,7 @@ db.ref("presence").on("value", snap=>{
   astrologerList.innerHTML="";
   snap.forEach(child=>{
     const data = child.val();
-if(data.role === "astrologer" && data.online === true && !data.busy){
+if(data.role === "astrologer"){
       const uname = data.username || child.key;
       const div=document.createElement("div");
       div.className="card";
@@ -1025,6 +1011,7 @@ function updateRate(){
   input.value = "";
 }
 let earningsRef = null;
+const ONLINE_KEY = "astrolab_online";
 
 function watchTodayEarnings(){
   if(!userId || role !== "astrologer") return;
