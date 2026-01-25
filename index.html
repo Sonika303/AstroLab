@@ -12,7 +12,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <style>
 :root {
@@ -805,51 +804,13 @@ function buyCredits(credits){
     return;
   }
 
-  fetch("http://localhost:3000/create-order", {  // or your live server URL
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      credits,
-      userId
-    })
-  })
-  .then(res => res.json())
-  .then(order => {
-    const options = {
-      key: "rzp_test_S7gYagYpKs6NEW",
-      amount: order.amount,
-      currency: "INR",
-      name: "AstroLab",
-      description: `${credits} Credits`,
-      order_id: order.id,
-      handler: function (response) {
-        verifyPayment(response, credits);
-      }
-    };
+  const ref = db.ref("presence/" + userId + "/credits");
 
-    const rzp = new Razorpay(options);
-    rzp.open();
-  })
-  .catch(() => alert("Payment failed to start"));
-}
-function verifyPayment(payment, credits){
-  fetch("http://localhost:3000/verify-payment", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      payment,
-      userId,
-      credits
-    })
-  })
-  .then(res => res.json())
-  .then(result => {
-    if(result.success){
-      alert("Credits added successfully");
-    } else {
-      alert("Payment verification failed");
-    }
+  ref.transaction(current => {
+    return (current || 0) + credits;
   });
+
+  alert(credits + " credits added successfully (TEST MODE)");
 }
 
 /* ================= OPEN CHAT ================= */
