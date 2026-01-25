@@ -278,8 +278,8 @@ input:focus, textarea:focus {
   </div>
 
   <p><strong>Your Credits:</strong> <span id="creditBalance">0</span></p>
-<button onclick="buyCredits(50)">
-  <i class="fa-solid fa-wallet"></i> Buy 50 Credits (₹50)
+<button onclick="buyCredits()">
+  <i class="fa-solid fa-wallet"></i> Buy Credits
 </button>
 <hr>
 
@@ -798,19 +798,13 @@ if(role === "astrologer"){
 }
   openChat(chatId);
 }
-function buyCredits(credits){
+function buyCredits(){
   if(!userId){
     alert("Please login first");
     return;
   }
 
-  const ref = db.ref("presence/" + userId + "/credits");
-
-  ref.transaction(current => {
-    return (current || 0) + credits;
-  });
-
-  alert(credits + " credits added successfully (TEST MODE)");
+  window.location.href = "https://pages.razorpay.com/pl_xxxxx";
 }
 
 /* ================= OPEN CHAT ================= */
