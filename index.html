@@ -845,8 +845,22 @@ function buyCredits(amount){
     return;
   }
 
-  alert("Credits will be added within 24 hours after payment.");
-  window.open(link + "?t=" + Date.now(), "_blank");
+  const email = auth.currentUser?.email || "unknown";
+
+  // 🔥 IMPORTANT: PASS UID + EMAIL TO RAZORPAY
+  const params =
+    "?uid=" + encodeURIComponent(userId) +
+    "&email=" + encodeURIComponent(email) +
+    "&amount=" + amount +
+    "&time=" + Date.now();
+
+  alert(
+    "Payment page will open.\n\n" +
+    "Credits will be added within 24 hours.\n\n" +
+    "Your User ID is saved automatically."
+  );
+
+  window.open(link + params, "_blank");
 }
 
 /* ================= OPEN CHAT ================= */
