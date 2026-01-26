@@ -810,9 +810,11 @@ function buyCredits(){
     return;
   }
 
-  const link = "https://rzp.io/rzp/NroDLuVF";
+  const baseLink = "https://rzp.io/rzp/NroDLuVF";
+  const freshLink = baseLink + "?t=" + Date.now(); // 🔥 force fresh Razorpay page
+
   alert("Your credits will be added within 24 hours after payment.");
-  window.open(link, "_blank");
+  window.open(freshLink, "_blank");
 }
 
 /* ================= OPEN CHAT ================= */
