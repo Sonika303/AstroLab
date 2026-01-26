@@ -241,6 +241,13 @@ input:focus, textarea:focus {
 
 <p><strong>Login Method:</strong> <span id="loginProvider">—</span></p>
 <p><strong>Linked Email:</strong> <span id="linkedEmail">—</span></p>
+  <button id="linkGoogleBtn" onclick="linkGoogle()">
+  Link Google Account
+</button>
+
+<button id="unlinkGoogleBtn" onclick="unlinkGoogle()" style="background:#dc2626">
+  Unlink Google Account
+</button>
 
 <input id="newEmail" placeholder="New Email">
 <button onclick="changeEmail()">Change Email</button>
@@ -280,6 +287,9 @@ input:focus, textarea:focus {
     <input id="username" placeholder="Username (unique)">
     <button type="button" onclick="signup()">Signup</button>
     <button type="button" onclick="login()">Login</button>
+    <button type="button" onclick="forgotPassword()" style="background:#64748b">
+  Forgot Password
+</button>
     <button type="button" onclick="googleLogin()">Sign in with Google</button>
     <p id="error"></p>
   </div>
@@ -412,6 +422,16 @@ auth.onAuthStateChanged(user => {
 
   if (providerSpan && emailSpan) {
     const providers = user.providerData.map(p => p.providerId);
+    const linkBtn = document.getElementById("linkGoogleBtn");
+const unlinkBtn = document.getElementById("unlinkGoogleBtn");
+
+if(providers.includes("google.com")){
+  linkBtn.style.display = "none";
+  unlinkBtn.style.display = "block";
+} else {
+  linkBtn.style.display = "block";
+  unlinkBtn.style.display = "none";
+}
 
     providerSpan.textContent =
       providers.includes("google.com")
@@ -1213,6 +1233,53 @@ async function changeEmail() {
     document.getElementById("newEmail").value = "";
   } catch (err) {
     alert("Please login again to change email");
+  }
+}
+function forgotPassword(){
+  const email = document.getElementById("email").value.trim();
+
+  if(!email){
+    alert("Enter your email first");
+    return;
+  }
+
+  auth.sendPasswordResetEmail(email)
+    .then(()=>{
+      alert("Password reset email sent");
+    })
+    .catch(err=>{
+      alert(err.message);
+    });
+}
+async function linkGoogle(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  const user = auth.currentUser;
+
+  try {
+    await user.linkWithPopup(provider);
+    alert("Google account linked");
+    location.reload();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+function hasEmailProvider(user){
+  return user.providerData.some(p => p.providerId === "password");
+}
+
+async function unlinkGoogle(){
+  const user = auth.currentUser;
+
+  try {
+    if(!hasEmailProvider(user)){
+  alert("Add email/password before unlinking Google");
+  return;
+}
+await user.unlink("google.com");
+    alert("Google account unlinked");
+    location.reload();
+  } catch (err) {
+    alert(err.message);
   }
 }
 
