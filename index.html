@@ -284,9 +284,27 @@ input:focus, textarea:focus {
   </div>
 
   <p><strong>Your Credits:</strong> <span id="creditBalance">0</span></p>
-<button onclick="buyCredits()">
-  <i class="fa-solid fa-wallet"></i> Buy Credits
-</button>
+
+<div class="card">
+  <h3>Buy Credits</h3>
+
+  <button onclick="buyCredits(49)">
+    💠 ₹49 — Get 50 Credits
+  </button>
+
+  <button onclick="buyCredits(99)">
+    ⭐ ₹99 — Get 100 Credits
+  </button>
+
+  <button onclick="buyCredits(249)">
+    🔥 ₹249 — Get 250 Credits 
+  </button>
+
+  <small style="color:#64748b;">
+    Credits will be added within 24 hours after payment.
+  </small>
+</div>
+
 <hr>
 
   <!-- ASTROLOGER VIEW -->
@@ -804,17 +822,31 @@ if(role === "astrologer"){
 }
   openChat(chatId);
 }
-function buyCredits(){
+function buyCredits(amount){
   if(!userId){
     alert("Please login first");
     return;
   }
 
-  const baseLink = "https://rzp.io/rzp/NroDLuVF";
-  const freshLink = baseLink + "?t=" + Date.now(); // 🔥 force fresh Razorpay page
+  let link = "";
 
-  alert("Your credits will be added within 24 hours after payment.");
-  window.open(freshLink, "_blank");
+  if(amount === 49){
+    link = "https://rzp.io/rzp/RUUMZHJ";
+  } 
+  else if(amount === 99){
+    link = "https://rzp.io/rzp/6AZ3OVwi";
+  } 
+  else if(amount === 249){
+    link = "https://rzp.io/rzp/EnOGqzT";
+  }
+
+  if(!link){
+    alert("Invalid package");
+    return;
+  }
+
+  alert("Credits will be added within 24 hours after payment.");
+  window.open(link + "?t=" + Date.now(), "_blank");
 }
 
 /* ================= OPEN CHAT ================= */
