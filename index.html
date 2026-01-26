@@ -237,6 +237,13 @@ input:focus, textarea:focus {
   <input id="s_name" placeholder="Display Name">
   <input id="s_speciality" placeholder="Speciality">
   <input id="s_desc" placeholder="Description"></input>
+  <hr>
+
+<p><strong>Login Method:</strong> <span id="loginProvider">—</span></p>
+<p><strong>Linked Email:</strong> <span id="linkedEmail">—</span></p>
+
+<input id="newEmail" placeholder="New Email">
+<button onclick="changeEmail()">Change Email</button>
 
 <!-- 🔥 NEW PASSWORD CHANGE FIELDS -->
 <input id="currentPassword" type="password" placeholder="Current Password">
@@ -399,6 +406,21 @@ const s_desc = document.getElementById("s_desc");
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
   if(user){
+    setTimeout(() => {
+  const providerSpan = document.getElementById("loginProvider");
+  const emailSpan = document.getElementById("linkedEmail");
+
+  if (providerSpan && emailSpan) {
+    const providers = user.providerData.map(p => p.providerId);
+
+    providerSpan.textContent =
+      providers.includes("google.com")
+        ? "Google"
+        : "Email & Password";
+
+    emailSpan.textContent = user.email || "Not linked";
+  }
+}, 500);
     userId = user.uid;
 
     authCard.classList.add("hidden");
@@ -1173,6 +1195,24 @@ async function changePassword() {
     document.getElementById("newPassword").value = "";
   } catch (err) {
     alert("Error: " + err.message);
+  }
+}
+async function changeEmail() {
+  const newEmail = document.getElementById("newEmail").value.trim();
+  if (!newEmail) {
+    alert("Enter new email");
+    return;
+  }
+
+  const user = auth.currentUser;
+
+  try {
+    await user.updateEmail(newEmail);
+    alert("Email updated");
+    document.getElementById("linkedEmail").textContent = newEmail;
+    document.getElementById("newEmail").value = "";
+  } catch (err) {
+    alert("Please login again to change email");
   }
 }
 
