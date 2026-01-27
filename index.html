@@ -380,6 +380,11 @@ const auth = firebase.auth();
 const db = firebase.database();
 const storage = firebase.storage();
 const connectedRef = db.ref(".info/connected");
+connectedRef.on("value", snap=>{
+  if(snap.val() === false && userId){
+    db.ref("currentChat/" + userId).remove();
+  }
+});
 
 /* ================= STATE ================= */
 let userId = null;
@@ -468,16 +473,20 @@ if(savedRole === "astrologer" && wasOnline === "1"){
 db.ref("currentChat/" + userId).on("value", snap => {
   if (!snap.exists()) return;
 
-  const id = snap.val();
-  db.ref("chats/" + id + "/meta").once("value").then(metaSnap => {
+  const chatId = snap.val();
+
+  db.ref("chats/" + chatId + "/meta").once("value").then(metaSnap=>{
     const meta = metaSnap.val();
-    if (meta && meta.active === true) {
-      openChat(id);
-    } 
+
+    if(!meta || meta.active !== true){
+      db.ref("currentChat/" + userId).remove();
+      return;
+    }
+
+    openChat(chatId);
   });
 });
-;
-
+  c                                                                                                                                                                            
 } else {
   userId = null;
   chatId = null;
@@ -629,7 +638,10 @@ function loadProfile(){
 }
 
 /* ================= LOGOUT ================= */
-function logout(){ auth.signOut(); }
+function logout(){
+  clearMyRequests();
+  auth.signOut();
+}
 function saveSettings(){
   if(!userId){
     alert("Please sign in to save settings");
@@ -720,6 +732,7 @@ function toggleOnline(isOnline){
   localStorage.setItem(ONLINE_KEY, isOnline ? "1" : "0");
 
   if(isOnline){
+    clearMyRequests();
     ref.update({
       role: "astrologer",
       online: true,
@@ -735,6 +748,7 @@ function toggleOnline(isOnline){
 
     startQueueListener();
   } else {
+    clearMyRequests();
     stopQueueListener();
     ref.update({
       online: false,
@@ -1186,7 +1200,11 @@ function endChat(reason){
     clearInterval(creditInterval);
     creditInterval = null;
   }
-
+setTimeout(()=>{
+  if(chatId){
+    db.ref("chats/" + chatId).remove();
+  }
+}, 5000);
   if(!chatId) return;
 
   db.ref("chats/"+chatId+"/meta").update({
@@ -1281,6 +1299,10 @@ await user.unlink("google.com");
   } catch (err) {
     alert(err.message);
   }
+}
+function clearMyRequests(){
+  if(!userId) return;
+  db.ref("requests/" + userId).remove();
 }
 
 </script>
