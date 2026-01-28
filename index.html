@@ -200,7 +200,23 @@ input:focus, textarea:focus {
   color: white;
   margin-left: auto;
 }
+.stars i{
+  font-size:18px;
+  color:#d1d5db;
+  cursor:pointer;
+  margin-right:4px;
+}
+.stars i.active{ color:#facc15; }
 
+.review-box{
+  margin-top:10px;
+}
+.review{
+  font-size:13px;
+  border-top:1px solid var(--border);
+  padding-top:6px;
+  margin-top:6px;
+}
 /* ---------- UTIL ---------- */
 .hidden { display: none; }
 #error { color: #dc2626; font-weight: 500; }
@@ -284,6 +300,10 @@ input:focus, textarea:focus {
     <h3>Login / Signup</h3>
     <input id="email" placeholder="Email">
     <input id="password" type="password" placeholder="Password">
+<label>
+  <input type="checkbox" onclick="password.type=this.checked?'text':'password'">
+  Show Password
+</label>
     <input id="username" placeholder="Username (unique)">
     <button type="button" onclick="signup()">Signup</button>
     <button type="button" onclick="login()">Login</button>
@@ -381,6 +401,9 @@ const db = firebase.database();
 const storage = firebase.storage();
 const connectedRef = db.ref(".info/connected");
 connectedRef.on("value", snap=>{
+  if(chatId){
+  db.ref("chats/"+chatId).remove();
+}
   if(snap.val() === false && userId){
     db.ref("currentChat/" + userId).remove();
   }
@@ -799,28 +822,30 @@ if(data.role === "astrologer" && data.online === true){
 div.innerHTML = `
   <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
   <strong>${uname}</strong>
-<span style="font-size:11px;color:${data.online ? '#16a34a' : '#9ca3af'}">
-  ● ${data.online ? "ONLINE" : "OFFLINE"}
-</span><br>
-  <small>${data.speciality || "Astrology"}</small><br>
-<small>
-  <strong>${data.ratePerMinute}</strong> credits / min
-  ${
-    userCache.__firstChatUsed === false
-    ? `<span style="color:#16a34a;font-weight:600;">• 10% OFF first chat</span>`
-    : ``
-  }
-</small>
-  <p>${data.description || ""}</p>
- <button onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
-  ${(!data.online || data.busy) ? "disabled" : ""}>
+  <div class="stars" id="stars_${child.key}"></div>
 
+  <small>${data.speciality || "Astrology"}</small><br>
+  <small><strong>${data.ratePerMinute}</strong> credits / min</small>
+
+  <p>${data.description || ""}</p>
+
+  <div class="review-box">
+    <textarea id="reviewText_${child.key}" placeholder="Write a review (optional)"></textarea>
+    <button onclick="submitReview('${child.key}')">Submit Review</button>
+  </div>
+
+  <div id="reviews_${child.key}"></div>
+
+  <button onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
+    ${(!data.online || data.busy) ? "disabled" : ""}>
     ${data.busy ? "Busy" : "Request Chat"}
   </button>
 `;
       astrologerList.appendChild(div);
     }
     // cache usernames
+    renderStars(child.key);
+loadReviews(child.key);
     userCache[child.key] = data.username;
   });
 });
@@ -959,7 +984,7 @@ metaRef.on("value", snap=>{
     div.className = "message " + (msg.from === userId ? "self" : "");
     div.textContent = (userCache[msg.from] || "User") + ": " + msg.text;
     messagesDiv.appendChild(div);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    messagesDiv.scrollTo({ top: messagesDiv.scrollHeight, behavior:"smooth" });
   });
 }
 
@@ -1023,6 +1048,9 @@ function exitChat(){
 
   // 🔥 AUTHORITATIVE END
   db.ref("chats/"+endedChatId+"/meta/active").set(false);
+  setTimeout(()=>{
+  db.ref("chats/"+endedChatId).remove();
+}, 3000);
 
   // remove assignments
   db.ref("currentChat/"+userId).remove();
@@ -1303,6 +1331,53 @@ await user.unlink("google.com");
 function clearMyRequests(){
   if(!userId) return;
   db.ref("requests/" + userId).remove();
+}
+let selectedStars = {};
+
+function renderStars(astroId){
+  const box = document.getElementById("stars_"+astroId);
+  box.innerHTML = "";
+  for(let i=1;i<=5;i++){
+    const star = document.createElement("i");
+    star.className = "fa-solid fa-star";
+    if(i <= (selectedStars[astroId] || 0)) star.classList.add("active");
+    star.onclick = ()=>{
+      selectedStars[astroId] = i;
+      renderStars(astroId);
+    };
+    box.appendChild(star);
+  }
+}
+function submitReview(astroId){
+  if(!userId) return alert("Login first");
+
+  const stars = selectedStars[astroId];
+  if(!stars) return alert("Select stars");
+
+  const text =
+    document.getElementById("reviewText_"+astroId).value.trim();
+
+  db.ref(`reviews/${astroId}/${userId}`).set({
+    stars,
+    text,
+    time: Date.now()
+  });
+
+  document.getElementById("reviewText_"+astroId).value = "";
+}
+function loadReviews(astroId){
+  const box = document.getElementById("reviews_"+astroId);
+  db.ref("reviews/"+astroId).off();
+  db.ref("reviews/"+astroId).on("value", snap=>{
+    box.innerHTML="";
+    snap.forEach(r=>{
+      const d = r.val();
+      const div = document.createElement("div");
+      div.className="review";
+      div.innerHTML = "⭐".repeat(d.stars) + "<br>" + (d.text || "");
+      box.appendChild(div);
+    });
+  });
 }
 
 </script>
