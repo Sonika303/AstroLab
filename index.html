@@ -446,10 +446,7 @@ button i {
   <strong>Today's Earnings:</strong>
   <span id="todayEarnings">0</span> credits
 </p>
-
-    <label>
-      <input type="checkbox" onchange="toggleOnline(this.checked)"> Go Online
-    </label>
+<button id="onlineBtn" onclick="toggleOnlineBtn()">Go Online</button>
     <h4>Chat Queue</h4>
     <div id="queueList"></div>
   </div>
@@ -824,12 +821,19 @@ function updateProfile(name, avatar){
 
 /* ================= ROLE SWITCH ================= */
 function switchRole(r){
-  if(!userId){
-    alert("Please sign in first");
+  if(role === "astrologer"){
+    db.ref("presence/"+userId+"/online").once("value").then(snap=>{
+      if(snap.val() === true){
+        alert("Go offline before switching role");
+        return;
+      }
+      applyRole(r);
+    });
     return;
   }
-
-  // Free role switching for everyone
+  applyRole(r);
+}
+function applyRole(r){
   role = r;
   localStorage.setItem(ROLE_KEY, r);
 
@@ -837,24 +841,18 @@ function switchRole(r){
   astrologerView.classList.toggle("hidden", r !== "astrologer");
   chatView.classList.add("hidden");
 
-  // Start earnings listener if astrologer view
   if(r === "astrologer"){
     watchTodayEarnings();
-  } else {
-    if(earningsRef){
-      earningsRef.off();
-      earningsRef = null;
-    }
+  } else if(earningsRef){
+    earningsRef.off();
+    earningsRef = null;
   }
-
-  // Show the astrologer button always
-  document.getElementById("astroBtn").classList.remove("hidden");
 }
-
 /* ================= ASTROLOGER ONLINE ================= */
 function toggleOnline(isOnline){
   const ref = db.ref("presence/"+userId);
-
+document.getElementById("onlineBtn").textContent =
+  isOnline ? "Go Offline" : "Go Online";
   localStorage.setItem(ONLINE_KEY, isOnline ? "1" : "0");
 
   if(isOnline){
@@ -1253,6 +1251,7 @@ function loadUserCache(){
   db.ref("presence").once("value").then(snap=>{
     snap.forEach(child=>{
       userCache[child.key] = child.val().username;
+      userCache[child.key+"_avatar"] = child.val().avatar;
     });
   });
 }
@@ -1455,7 +1454,10 @@ if(i <= (selectedStars[astroId] || 0)) star.classList.add("active");
 }
 function submitReview(astroId){
   if(!userId) return alert("Login first");
-
+if(userId === astroId){
+  alert("You cannot review yourself");
+  return;
+}
   const stars = selectedStars[astroId];
   if(!stars) return alert("Select stars");
 
@@ -1471,10 +1473,11 @@ reviewRef.once("value").then(snap=>{
   }
 
   reviewRef.set({
-    stars,
-    text,
-    time: Date.now()
-  });
+  stars,
+  text,
+  time: Date.now(),
+  userId: userId
+});
 });
 
   document.getElementById("reviewText_"+astroId).value = "";
@@ -1482,62 +1485,50 @@ reviewRef.once("value").then(snap=>{
 function loadReviews(astroId){
   const listBox = document.getElementById("reviews_"+astroId);
   const statsBox = document.getElementById("reviewStats_"+astroId);
-  const ref = db.ref("reviews/"+astroId);
 
-  ref.off();
-  ref.on("value", snap=>{
+  db.ref("reviews/"+astroId).on("value", snap=>{
     listBox.innerHTML = "";
+    let total = 0, count = 0;
 
-    let counts = {1:0,2:0,3:0,4:0,5:0};
-    let total = 0;
+    snap.forEach(child=>{
+      const r = child.val();
+      total += r.stars;
+      count++;
 
-    snap.forEach(r=>{
-      const d = r.val();
-      counts[d.stars] = (counts[d.stars] || 0) + 1;
-      total++;
-    });
-
-    // 🔥 STATS HEADER
-    statsBox.innerHTML = `
-      <div><strong>Total Reviews:</strong> ${total}</div>
-      <div>⭐5: ${counts[5] || 0}</div>
-      <div>⭐4: ${counts[4] || 0}</div>
-      <div>⭐3: ${counts[3] || 0}</div>
-      <div>⭐2: ${counts[2] || 0}</div>
-      <div>⭐1: ${counts[1] || 0}</div>
-    `;
-
-    // 🔥 LIST
-    snap.forEach(r=>{
-      const d = r.val();
-      const reviewId = r.key;
-      const reviewer = userCache[d.userId] || "User";
+      const user = userCache[r.userId] || "User";
+      const avatar =
+        userCache[r.userId+"_avatar"] ||
+        "https://via.placeholder.com/32";
 
       const div = document.createElement("div");
       div.className = "review-item";
-
-      let del = "";
-      if(userId === astroId || userId === d.userId){
-        del = `<button class="review-delete"
-          onclick="deleteReview('${astroId}','${reviewId}')">
-          Delete</button>`;
-      }
-
       div.innerHTML = `
-        <div class="review-user">${reviewer}</div>
-        <div class="review-stars">${"⭐".repeat(d.stars)}</div>
-        <div>${d.text || ""}</div>
-        ${del}
+        <div style="display:flex;gap:8px;align-items:center;">
+          <img src="${avatar}" style="width:32px;height:32px;border-radius:50%">
+          <div>
+            <div class="review-user">${user}</div>
+            <div class="review-stars">${"★".repeat(r.stars)}</div>
+          </div>
+        </div>
+        <div>${r.text || ""}</div>
       `;
-
       listBox.appendChild(div);
     });
+
+    statsBox.innerHTML = count
+      ? `⭐ ${(total/count).toFixed(1)} (${count} reviews)`
+      : "No reviews yet";
   });
 }
 
 function deleteReview(astroId, reviewId){
   if(!confirm("Delete this review?")) return;
   db.ref(`reviews/${astroId}/${reviewId}`).remove();
+}
+function toggleOnlineBtn(){
+  db.ref("presence/"+userId+"/online").once("value").then(snap=>{
+    toggleOnline(!snap.val());
+  });
 }
 
 </script>
