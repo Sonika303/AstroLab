@@ -1525,8 +1525,7 @@ function deleteReview(astroId, reviewId){
   db.ref(`reviews/${astroId}/${reviewId}`).remove();
 }
 function toggleOnlineBtn(){
-  const isOnline =
-    document.getElementById("onlineBtn").textContent.includes("Online");
+  const isOnline = localStorage.getItem(ONLINE_KEY) === "1";
   toggleOnline(!isOnline);
 }
 
