@@ -487,14 +487,12 @@ const db = firebase.database();
 const storage = firebase.storage();
 const connectedRef = db.ref(".info/connected");
 connectedRef.on("value", snap=>{
-  if(chatId){
-  db.ref("chats/"+chatId).remove();
-}
-  if(snap.val() === false && userId){
+  if(!userId) return;
+
+  if(snap.val() === false){
     db.ref("currentChat/" + userId).remove();
   }
 });
-
 /* ================= STATE ================= */
 let userId = null;
 let role = "client";
@@ -681,24 +679,22 @@ function signup(){
 }
 
 /* ================= LOGIN FUNCTION ================= */
-function login() {
-  const e = document.getElementById("email").value.trim();
-  const p = document.getElementById("password").value.trim();
-  const error = document.getElementById("error");
+function login(){
+  const e = emailInput.value.trim();
+  const p = passwordInput.value.trim();
 
-  if (!e || !p) {
-    error.textContent = "Email and password are required";
+  if(!e || !p){
+    showError("Email and password are required");
     return;
   }
 
-  firebase.auth().signInWithEmailAndPassword(e, p)
-    .then(res => {
-      error.textContent = ""; // Clear any previous errors
-      // User will be handled by onAuthStateChanged
+  auth.signInWithEmailAndPassword(e, p)
+    .then(()=>{
+      showError("");
+      // onAuthStateChanged will handle UI
     })
-    .catch(err => {
-      console.error(err);
-      error.textContent = err.message;
+    .catch(err=>{
+      showError(err.message);
     });
 }
 
