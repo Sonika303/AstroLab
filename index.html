@@ -507,6 +507,7 @@ let userCache = {}; // cache usernames
 let creditInterval = null;
 let chatStartTime = null;
 let chatTimerInterval = null;
+const ONLINE_KEY = "astrolab_online";
 
 /* ================= ELEMENTS ================= */
 const authCard = document.getElementById("authCard");
@@ -572,7 +573,6 @@ if(savedRole){
     const wasOnline = localStorage.getItem(ONLINE_KEY);
 if(savedRole === "astrologer" && wasOnline === "1"){
   toggleOnline(true);
-  document.querySelector("#astrologerView input[type=checkbox]").checked = true;
 }
     loadUserCache();
     watchCredits();
@@ -1294,7 +1294,6 @@ function updateRate(){
   input.value = "";
 }
 let earningsRef = null;
-const ONLINE_KEY = "astrolab_online";
 
 function watchTodayEarnings(){
   if(!userId || role !== "astrologer") return;
@@ -1530,9 +1529,9 @@ function deleteReview(astroId, reviewId){
   db.ref(`reviews/${astroId}/${reviewId}`).remove();
 }
 function toggleOnlineBtn(){
-  db.ref("presence/"+userId+"/online").once("value").then(snap=>{
-    toggleOnline(!snap.val());
-  });
+  const isOnline =
+    document.getElementById("onlineBtn").textContent.includes("Online");
+  toggleOnline(!isOnline);
 }
 
 </script>
