@@ -48,9 +48,7 @@ body {
   font-family: Inter, Arial, sans-serif;
   background: linear-gradient(180deg, #ffffff, #f8fafc);
   display: flex;
-  perspective: 1200px;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
   color: var(--text);
 }
 
@@ -204,7 +202,13 @@ input:focus, textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(79,70,229,.15);
 }
+.card button {
+  margin-top: 10px;
+}
 
+button i {
+  margin-right: 6px;
+}
 /* ---------- CHAT ---------- */
 .chat-box {
   height: 320px;
@@ -594,7 +598,6 @@ db.ref("currentChat/" + userId).on("value", snap => {
     openChat(chatId);
   });
 });
-  c                                                                                                                                                                            
 } else {
   userId = null;
   chatId = null;
