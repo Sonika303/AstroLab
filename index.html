@@ -371,7 +371,7 @@ button i {
   <button onclick="switchRole('client')">
   <i class="fa-solid fa-user"></i> Client
 </button>
-  <button onclick="switchRole('astrologer')">
+  <button id="astroBtn" onclick="switchRole('astrologer')" class="hidden">
   <i class="fa-solid fa-star"></i> Astrologer
 </button>
   <button onclick="toggleSettings()">
@@ -583,21 +583,18 @@ if(savedRole === "astrologer" && wasOnline === "1"){
 
  // 🔥 CHAT OPEN + CHAT END LISTENER
 db.ref("currentChat/" + userId).on("value", snap => {
-  if (!snap.exists()) return;
+  if(!snap.exists()) return;
 
-  const chatId = snap.val();
+  const id = snap.val();
 
-  db.ref("chats/" + chatId + "/meta").once("value").then(metaSnap=>{
+  db.ref("chats/"+id+"/meta").once("value").then(metaSnap=>{
     const meta = metaSnap.val();
-
-    if(!meta || meta.active !== true){
-      db.ref("currentChat/" + userId).remove();
-      return;
+    if(meta && meta.active === true){
+      openChat(id);
     }
-
-    openChat(chatId);
   });
 });
+
 } else {
   userId = null;
   chatId = null;
@@ -695,6 +692,11 @@ function login(){
   auth.signInWithEmailAndPassword(e,p)
     .catch(err=>showError(err.message));
 }
+db.ref("presence/"+userId+"/role").once("value").then(snap=>{
+  if(snap.val() === "astrologer"){
+    document.getElementById("astroBtn").classList.remove("hidden");
+  }
+});
 
 /* ================= GOOGLE LOGIN ================= */
 function googleLogin(){
@@ -817,6 +819,14 @@ function switchRole(r){
     alert("Please sign in first");
     return;
   }
+if(r === "astrologer"){
+  db.ref("presence/"+userId+"/role").once("value").then(snap=>{
+    if(snap.val() !== "astrologer"){
+      alert("Astrologer access not granted");
+      return;
+    }
+  });
+}
 
   role = r;
   localStorage.setItem(ROLE_KEY, r);
@@ -834,6 +844,13 @@ function switchRole(r){
       earningsRef = null;
     }
   }
+}
+function setAstrologerRole(targetUid, allow){
+  db.ref("presence/"+targetUid).update({
+    role: allow ? "astrologer" : "user",
+    online: false,
+    busy: false
+  });
 }
 
 /* ================= ASTROLOGER ONLINE ================= */
@@ -974,18 +991,19 @@ function acceptChat(queueKey, clientId){
   db.ref("presence/"+userId).update({ busy:true });
 
   // assign chat to both users
-  db.ref("currentChat").update({
-    [userId]: chatId,
-    [clientId]: chatId
-  });
+// 🔥 CREATE META FIRST
+await db.ref("chats/"+chatId+"/meta").set({
+  astrologer: userId,
+  client: clientId,
+  started: Date.now(),
+  active: true
+});
 
-  // ✅ SINGLE SOURCE OF TRUTH
-  db.ref("chats/"+chatId+"/meta").set({
-    astrologer: userId,
-    client: clientId,
-    started: Date.now(),
-    active: true
-  });
+// 🔥 THEN ASSIGN CHAT
+await db.ref("currentChat").update({
+  [userId]: chatId,
+  [clientId]: chatId
+});
 
   db.ref("requests/"+userId+"/"+queueKey).remove();
 
@@ -1446,11 +1464,19 @@ function submitReview(astroId){
   const text =
     document.getElementById("reviewText_"+astroId).value.trim();
 
-db.ref(`reviews/${astroId}`).push({
-  userId,
-  stars,
-  text,
-  time: Date.now()
+const reviewRef = db.ref(`reviews/${astroId}/${userId}`);
+
+reviewRef.once("value").then(snap=>{
+  if(snap.exists()){
+    alert("You already reviewed this astrologer");
+    return;
+  }
+
+  reviewRef.set({
+    stars,
+    text,
+    time: Date.now()
+  });
 });
 
   document.getElementById("reviewText_"+astroId).value = "";
