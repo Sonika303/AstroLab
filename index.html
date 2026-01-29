@@ -692,12 +692,7 @@ function login(){
   auth.signInWithEmailAndPassword(e,p)
     .catch(err=>showError(err.message));
 }
-db.ref("presence/"+userId+"/role").once("value").then(snap=>{
-  if(snap.val() === "astrologer"){
-    document.getElementById("astroBtn").classList.remove("hidden");
-  }
-});
-
+document.getElementById("astroBtn").classList.remove("hidden");
 /* ================= GOOGLE LOGIN ================= */
 function googleLogin(){
   const provider = new firebase.auth.GoogleAuthProvider();
@@ -819,15 +814,8 @@ function switchRole(r){
     alert("Please sign in first");
     return;
   }
-if(r === "astrologer"){
-  db.ref("presence/"+userId+"/role").once("value").then(snap=>{
-    if(snap.val() !== "astrologer"){
-      alert("Astrologer access not granted");
-      return;
-    }
-  });
-}
 
+  // Free role switching for everyone
   role = r;
   localStorage.setItem(ROLE_KEY, r);
 
@@ -835,7 +823,7 @@ if(r === "astrologer"){
   astrologerView.classList.toggle("hidden", r !== "astrologer");
   chatView.classList.add("hidden");
 
-  // 🔥 START EARNINGS LISTENER WHEN ASTROLOGER VIEW OPENS
+  // Start earnings listener if astrologer view
   if(r === "astrologer"){
     watchTodayEarnings();
   } else {
@@ -844,7 +832,11 @@ if(r === "astrologer"){
       earningsRef = null;
     }
   }
+
+  // Show the astrologer button always
+  document.getElementById("astroBtn").classList.remove("hidden");
 }
+
 /* ================= ASTROLOGER ONLINE ================= */
 function toggleOnline(isOnline){
   const ref = db.ref("presence/"+userId);
