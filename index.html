@@ -845,14 +845,6 @@ if(r === "astrologer"){
     }
   }
 }
-function setAstrologerRole(targetUid, allow){
-  db.ref("presence/"+targetUid).update({
-    role: allow ? "astrologer" : "user",
-    online: false,
-    busy: false
-  });
-}
-
 /* ================= ASTROLOGER ONLINE ================= */
 function toggleOnline(isOnline){
   const ref = db.ref("presence/"+userId);
