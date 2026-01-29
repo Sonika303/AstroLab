@@ -821,33 +821,37 @@ function updateProfile(name, avatar){
 
 /* ================= ROLE SWITCH ================= */
 function switchRole(r){
-  if(role === "astrologer"){
-    db.ref("presence/"+userId+"/online").once("value").then(snap=>{
-      if(snap.val() === true){
-        alert("Go offline before switching role");
-        return;
-      }
-      applyRole(r);
-    });
-    return;
+  if(!userId) return;
+
+  // 🔥 If astrologer switches to client, keep online state but stop UI + queue
+  if(role === "astrologer" && r === "client"){
+    stopQueueListener();           // stop queue UI
+    astrologerView.classList.add("hidden");
+    clientView.classList.remove("hidden");
   }
+
   applyRole(r);
 }
+
 function applyRole(r){
   role = r;
   localStorage.setItem(ROLE_KEY, r);
 
   clientView.classList.toggle("hidden", r !== "client");
   astrologerView.classList.toggle("hidden", r !== "astrologer");
+  if(!chatId){
   chatView.classList.add("hidden");
+}
 
-  if(r === "astrologer"){
-    watchTodayEarnings();
-  } else if(earningsRef){
+if(r === "astrologer"){
+  watchTodayEarnings();
+} else {
+  if(earningsRef){
     earningsRef.off();
     earningsRef = null;
   }
 }
+
 /* ================= ASTROLOGER ONLINE ================= */
 function toggleOnline(isOnline){
   const ref = db.ref("presence/"+userId);
