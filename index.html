@@ -217,6 +217,60 @@ input:focus, textarea:focus {
   padding-top:6px;
   margin-top:6px;
 }
+  /* ---------- REVIEW SIDE PANEL ---------- */
+.review-panel {
+  position: relative;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #f9fafb;
+  padding: 10px;
+}
+
+.review-stats {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.review-stats div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.review-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.review-item {
+  border-top: 1px solid var(--border);
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.review-user {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.review-stars {
+  color: #facc15;
+  font-size: 13px;
+}
+
+.review-delete {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
 /* ---------- UTIL ---------- */
 .hidden { display: none; }
 #error { color: #dc2626; font-weight: 500; }
@@ -834,7 +888,10 @@ div.innerHTML = `
     <button onclick="submitReview('${child.key}')">Submit Review</button>
   </div>
 
-  <div id="reviews_${child.key}"></div>
+  <div class="review-panel">
+  <div class="review-stats" id="reviewStats_${child.key}"></div>
+  <div class="review-scroll" id="reviews_${child.key}"></div>
+</div>
 
   <button onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
     ${(!data.online || data.busy) ? "disabled" : ""}>
@@ -1365,41 +1422,61 @@ db.ref(`reviews/${astroId}`).push({
   document.getElementById("reviewText_"+astroId).value = "";
 }
 function loadReviews(astroId){
-  const box = document.getElementById("reviews_"+astroId);
+  const listBox = document.getElementById("reviews_"+astroId);
+  const statsBox = document.getElementById("reviewStats_"+astroId);
   const ref = db.ref("reviews/"+astroId);
 
   ref.off();
   ref.on("value", snap=>{
-    box.innerHTML = "";
+    listBox.innerHTML = "";
+
+    let counts = {1:0,2:0,3:0,4:0,5:0};
+    let total = 0;
 
     snap.forEach(r=>{
       const d = r.val();
+      counts[d.stars] = (counts[d.stars] || 0) + 1;
+      total++;
+    });
+
+    // 🔥 STATS HEADER
+    statsBox.innerHTML = `
+      <div><strong>Total Reviews:</strong> ${total}</div>
+      <div>⭐5: ${counts[5] || 0}</div>
+      <div>⭐4: ${counts[4] || 0}</div>
+      <div>⭐3: ${counts[3] || 0}</div>
+      <div>⭐2: ${counts[2] || 0}</div>
+      <div>⭐1: ${counts[1] || 0}</div>
+    `;
+
+    // 🔥 LIST
+    snap.forEach(r=>{
+      const d = r.val();
       const reviewId = r.key;
+      const reviewer = userCache[d.userId] || "User";
 
       const div = document.createElement("div");
-      div.className = "review";
+      div.className = "review-item";
 
-      let deleteBtn = "";
-
-      // ✅ allow delete if astrologer OR review author
+      let del = "";
       if(userId === astroId || userId === d.userId){
-        deleteBtn = `
-          <button style="margin-top:4px;background:#dc2626"
-            onclick="deleteReview('${astroId}','${reviewId}')">
-            Delete
-          </button>`;
+        del = `<button class="review-delete"
+          onclick="deleteReview('${astroId}','${reviewId}')">
+          Delete</button>`;
       }
 
       div.innerHTML = `
-        <div>${"⭐".repeat(d.stars)}</div>
+        <div class="review-user">${reviewer}</div>
+        <div class="review-stars">${"⭐".repeat(d.stars)}</div>
         <div>${d.text || ""}</div>
-        ${deleteBtn}
+        ${del}
       `;
 
-      box.appendChild(div);
+      listBox.appendChild(div);
     });
   });
 }
+
 function deleteReview(astroId, reviewId){
   if(!confirm("Delete this review?")) return;
   db.ref(`reviews/${astroId}/${reviewId}`).remove();
