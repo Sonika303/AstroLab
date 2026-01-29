@@ -733,11 +733,6 @@ function googleLogin() {
           });
         }
       });
-
-      // Hide auth UI, show main UI
-      authCard.classList.add("hidden");
-      clientView.classList.remove("hidden");
-
     })
     .catch((error) => {
       console.error("Google login error:", error);
