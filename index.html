@@ -679,20 +679,28 @@ function signup(){
   });
 }
 
-/* ================= LOGIN ================= */
-function login(){
-  const e = emailInput.value.trim();
-  const p = passwordInput.value.trim();
+/* ================= LOGIN FUNCTION ================= */
+function login() {
+  const e = document.getElementById("email").value.trim();
+  const p = document.getElementById("password").value.trim();
+  const error = document.getElementById("error");
 
-  if(!e || !p){
-    showError("Email and password required");
+  if (!e || !p) {
+    error.textContent = "Email and password are required";
     return;
   }
 
-  auth.signInWithEmailAndPassword(e,p)
-    .catch(err=>showError(err.message));
+  firebase.auth().signInWithEmailAndPassword(e, p)
+    .then(res => {
+      error.textContent = ""; // Clear any previous errors
+      // User will be handled by onAuthStateChanged
+    })
+    .catch(err => {
+      console.error(err);
+      error.textContent = err.message;
+    });
 }
-document.getElementById("astroBtn").classList.remove("hidden");
+
 /* ================= GOOGLE LOGIN ================= */
 function googleLogin(){
   const provider = new firebase.auth.GoogleAuthProvider();
