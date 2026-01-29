@@ -1048,9 +1048,9 @@ function exitChat(){
 
   // 🔥 AUTHORITATIVE END
   db.ref("chats/"+endedChatId+"/meta/active").set(false);
-  setTimeout(()=>{
-  db.ref("chats/"+endedChatId).remove();
-}, 3000);
+  db.ref("chats/"+endedChatId+"/meta").update({
+  archived: true
+});
 
   // remove assignments
   db.ref("currentChat/"+userId).remove();
@@ -1146,9 +1146,6 @@ function loadUserCache(){
   db.ref("presence").once("value").then(snap=>{
     snap.forEach(child=>{
       userCache[child.key] = child.val().username;
-      if(child.key === userId){
-        userCache.__firstChatUsed = child.val().firstChatUsed;
-      }
     });
   });
 }
@@ -1339,7 +1336,8 @@ function renderStars(astroId){
   box.innerHTML = "";
   for(let i=1;i<=5;i++){
     const star = document.createElement("i");
-    star.className = "fa-solid fa-star";
+star.className = "fa-solid fa-star";
+if(i <= (selectedStars[astroId] || 0)) star.classList.add("active");
     if(i <= (selectedStars[astroId] || 0)) star.classList.add("active");
     star.onclick = ()=>{
       selectedStars[astroId] = i;
@@ -1357,27 +1355,54 @@ function submitReview(astroId){
   const text =
     document.getElementById("reviewText_"+astroId).value.trim();
 
-  db.ref(`reviews/${astroId}/${userId}`).set({
-    stars,
-    text,
-    time: Date.now()
-  });
+db.ref(`reviews/${astroId}`).push({
+  userId,
+  stars,
+  text,
+  time: Date.now()
+});
 
   document.getElementById("reviewText_"+astroId).value = "";
 }
 function loadReviews(astroId){
   const box = document.getElementById("reviews_"+astroId);
-  db.ref("reviews/"+astroId).off();
-  db.ref("reviews/"+astroId).on("value", snap=>{
-    box.innerHTML="";
+  const ref = db.ref("reviews/"+astroId);
+
+  ref.off();
+  ref.on("value", snap=>{
+    box.innerHTML = "";
+
     snap.forEach(r=>{
       const d = r.val();
+      const reviewId = r.key;
+
       const div = document.createElement("div");
-      div.className="review";
-      div.innerHTML = "⭐".repeat(d.stars) + "<br>" + (d.text || "");
+      div.className = "review";
+
+      let deleteBtn = "";
+
+      // ✅ allow delete if astrologer OR review author
+      if(userId === astroId || userId === d.userId){
+        deleteBtn = `
+          <button style="margin-top:4px;background:#dc2626"
+            onclick="deleteReview('${astroId}','${reviewId}')">
+            Delete
+          </button>`;
+      }
+
+      div.innerHTML = `
+        <div>${"⭐".repeat(d.stars)}</div>
+        <div>${d.text || ""}</div>
+        ${deleteBtn}
+      `;
+
       box.appendChild(div);
     });
   });
+}
+function deleteReview(astroId, reviewId){
+  if(!confirm("Delete this review?")) return;
+  db.ref(`reviews/${astroId}/${reviewId}`).remove();
 }
 
 </script>
