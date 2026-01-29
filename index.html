@@ -702,18 +702,20 @@ function login() {
 }
 
 /* ================= GOOGLE LOGIN ================= */
-function googleLogin(){
+function googleLogin() {
   const provider = new firebase.auth.GoogleAuthProvider();
 
   auth.signInWithPopup(provider)
-    .then(res=>{
-      userId = res.user.uid;
+    .then((result) => {
+      const user = result.user;
+      userId = user.uid;
 
+      // Create presence record if not exists
       const ref = db.ref("presence/" + userId);
-      ref.once("value").then(snap=>{
-        if(!snap.exists()){
+      ref.once("value").then(snap => {
+        if (!snap.exists()) {
           ref.set({
-            username: "user_" + userId.slice(0,6),
+            username: "user_" + userId.slice(0, 6),
             speciality: "",
             description: "",
             avatar: "",
@@ -727,10 +729,15 @@ function googleLogin(){
           });
         }
       });
+
+      // Hide auth UI, show main UI
+      authCard.classList.add("hidden");
+      clientView.classList.remove("hidden");
+
     })
-    .catch(err=>{
-      console.error(err);
-      showError(err.message);
+    .catch((error) => {
+      console.error("Google login error:", error);
+      showError(error.message || "Google login failed");
     });
 }
 
