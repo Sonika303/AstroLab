@@ -910,7 +910,10 @@ queueRef.on("child_removed", snap=>{
 
 }
 function stopQueueListener(){ if(queueRef) queueRef.off(); queueList.innerHTML=""; }
-
+function toggleOnlineBtn(){
+  const isOnline = localStorage.getItem(ONLINE_KEY) === "1";
+  toggleOnline(!isOnline);
+}
 /* ================= CLIENT VIEW ================= */
 db.ref("presence").on("value", snap=>{
   astrologerList.innerHTML="";
@@ -1523,10 +1526,6 @@ function loadReviews(astroId){
 function deleteReview(astroId, reviewId){
   if(!confirm("Delete this review?")) return;
   db.ref(`reviews/${astroId}/${reviewId}`).remove();
-}
-function toggleOnlineBtn(){
-  const isOnline = localStorage.getItem(ONLINE_KEY) === "1";
-  toggleOnline(!isOnline);
 }
 </script>
 </body>
