@@ -390,7 +390,7 @@ button i {
     <input id="email" placeholder="Email">
     <input id="password" type="password" placeholder="Password">
 <label>
-  <input type="checkbox" onclick="password.type=this.checked?'text':'password'">
+  <input type="checkbox" onclick="document.getElementById('password').type = this.checked ? 'text' : 'password'">
   Show Password
 </label>
     <input id="username" placeholder="Username (unique)">
@@ -666,7 +666,7 @@ function signup(){
           speciality: "",
           description: "",
           avatar: "",
-          role: "user",
+          role: "client",
           busy: false,
           online: false,
           lastSeen: Date.now(),
@@ -675,6 +675,10 @@ function signup(){
           firstChatUsed: false
         });
       })
+      .then(()=>{
+  error.textContent = "";
+  usernameInput.value = "";
+})
       .catch(err=>showError(err.message));
   });
 }
@@ -719,7 +723,7 @@ function googleLogin() {
             speciality: "",
             description: "",
             avatar: "",
-            role: "user",
+            role: "client",
             busy: false,
             online: false,
             lastSeen: Date.now(),
@@ -982,7 +986,7 @@ function requestChat(astrologerId, rate){
 }
 
 /* ================= ACCEPT CHAT ================= */
-function acceptChat(queueKey, clientId){
+async function acceptChat(queueKey, clientId){
   chatId = db.ref("chats").push().key;
   partnerId = clientId;
 
@@ -1237,7 +1241,7 @@ if(firstChatUsed === false){
     snap.forEach(child=>{
       db.ref("presence/"+child.key).update({
         online: false,
-        role: "user",
+        role: "client",
         busy: false,
         lastSeen: Date.now()
       });
