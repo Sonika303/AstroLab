@@ -832,15 +832,16 @@ function applyRole(r){
   clientView.classList.toggle("hidden", r !== "client");
   astrologerView.classList.toggle("hidden", r !== "astrologer");
   if(!chatId){
-  chatView.classList.add("hidden");
-}
+    chatView.classList.add("hidden");
+  }
 
-if(r === "astrologer"){
-  watchTodayEarnings();
-} else {
-  if(earningsRef){
-    earningsRef.off();
-    earningsRef = null;
+  if(r === "astrologer"){
+    watchTodayEarnings();
+  } else {
+    if(earningsRef){
+      earningsRef.off();
+      earningsRef = null;
+    }
   }
 }
 
