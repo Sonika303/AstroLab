@@ -144,10 +144,6 @@ body {
   margin-bottom: 10px;
   box-shadow: 0 6px 18px rgba(0,0,0,.15);
 }
-.avatar {
-  transition: transform .3s ease, box-shadow .3s ease;
-}
-
 .avatar:hover {
   transform: scale(1.05);
   box-shadow: 0 14px 32px rgba(0,0,0,.18);
@@ -867,7 +863,7 @@ if(r === "astrologer"){
 /* ================= ASTROLOGER ONLINE ================= */
 function toggleOnline(isOnline){
   const ref = db.ref("presence/"+userId);
-document.getElementById("onlineBtn").textContent =
+// document.getElementById("onlineBtn").textContent =  // COMMENTED OUT - no onlineBtn exists
   isOnline ? "Go Offline" : "Go Online";
   localStorage.setItem(ONLINE_KEY, isOnline ? "1" : "0");
 
@@ -1466,7 +1462,6 @@ function renderStars(astroId){
     const star = document.createElement("i");
 star.className = "fa-solid fa-star";
 if(i <= (selectedStars[astroId] || 0)) star.classList.add("active");
-    if(i <= (selectedStars[astroId] || 0)) star.classList.add("active");
     star.onclick = ()=>{
       selectedStars[astroId] = i;
       renderStars(astroId);
@@ -1518,9 +1513,7 @@ function loadReviews(astroId){
       count++;
 
       const user = userCache[r.userId] || "User";
-      const avatar =
-        userCache[r.userId+"_avatar"] ||
-        "https://via.placeholder.com/32";
+      const avatar = userCache[r.userId+"_avatar"] || "https://via.placeholder.com/32";
 
       const div = document.createElement("div");
       div.className = "review-item";
@@ -1542,7 +1535,6 @@ function loadReviews(astroId){
       : "No reviews yet";
   });
 }
-
 function deleteReview(astroId, reviewId){
   if(!confirm("Delete this review?")) return;
   db.ref(`reviews/${astroId}/${reviewId}`).remove();
