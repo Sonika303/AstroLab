@@ -450,10 +450,16 @@ button i {
   <strong>Today's Earnings:</strong>
   <span id="todayEarnings">0</span> credits
 </p>
-
-<button id="onlineBtn" onclick="toggleOnlineBtn()">
-  Go Online
-</button>
+  
+<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+  <input
+    type="checkbox"
+    id="onlineToggle"
+    onchange="onOnlineToggleChange(this)"
+    style="width:18px;height:18px;"
+  >
+  <span id="onlineStatusText">Offline</span>
+</label>
 
 <h4>Chat Queue</h4>
 <div id="queueList"></div>
@@ -576,8 +582,14 @@ if(providers.includes("google.com")){
 if(savedRole){
   switchRole(savedRole);
 }
-    const wasOnline = localStorage.getItem(ONLINE_KEY);
+const wasOnline = localStorage.getItem(ONLINE_KEY);
+const toggle = document.getElementById("onlineToggle");
+
 if(savedRole === "astrologer" && wasOnline === "1"){
+  if(toggle){
+    toggle.checked = true;
+    document.getElementById("onlineStatusText").textContent = "Online";
+  }
   toggleOnline(true);
 }
     loadUserCache();
@@ -921,6 +933,10 @@ function stopQueueListener(){ if(queueRef) queueRef.off(); queueList.innerHTML="
 function toggleOnlineBtn(){
   const isOnline = localStorage.getItem(ONLINE_KEY) === "1";
   toggleOnline(!isOnline);
+}
+  function onOnlineToggleChange(el){
+  const isOnline = el.checked;
+  toggleOnline(isOnline);
 }
 /* ================= CLIENT VIEW ================= */
 db.ref("presence").on("value", snap=>{
