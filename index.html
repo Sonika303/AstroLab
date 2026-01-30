@@ -399,36 +399,53 @@ button i {
     <p id="error"></p>
   </div>
 
-  <!-- CLIENT VIEW -->
-  <div id="clientView" class="hidden">
-    <h3>Online Astrologers</h3>
-    <div id="astrologerList"></div>
-  </div>
+/* ================= CLIENT VIEW ================= */
+db.ref("presence").on("value", snap=>{
+  astrologerList.innerHTML = "";
+  snap.forEach(child=>{
+    const data = child.val();
+    
+    // 🔥 ONLY for astrologers who are online
+    if(data.role === "astrologer" && data.online === true){
+      const uname = data.username || child.key;
+      const div = document.createElement("div");
+      div.className = "card";
+      
+      div.innerHTML = `
+        <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
+        <strong>${uname}</strong>
+        <div class="stars" id="stars_${child.key}"></div>
 
-  <p><strong>Your Credits:</strong> <span id="creditBalance">0</span></p>
+        <small>${data.speciality || "Astrology"}</small><br>
+        <small><strong>${data.ratePerMinute}</strong> credits / min</small>
 
-<div class="card">
-  <h3>Buy Credits</h3>
+        <p>${data.description || ""}</p>
 
-  <button onclick="buyCredits(49)">
-    💠 ₹49 — Get 50 Credits
-  </button>
+        <div class="review-box">
+          <textarea id="reviewText_${child.key}" placeholder="Write a review (optional)"></textarea>
+          <button onclick="submitReview('${child.key}')">Submit Review</button>
+        </div>
 
-  <button onclick="buyCredits(99)">
-    ⭐ ₹99 — Get 100 Credits
-  </button>
+        <div class="review-panel">
+          <div class="review-stats" id="reviewStats_${child.key}"></div>
+          <div class="review-scroll" id="reviews_${child.key}"></div>
+        </div>
 
-  <button onclick="buyCredits(249)">
-    🔥 ₹249 — Get 250 Credits 
-  </button>
-
-  <small style="color:#64748b;">
-    Credits will be added within 24 hours after payment.
-  </small>
-</div>
-
-<hr>
-
+        <button onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
+          ${(!data.online || data.busy) ? "disabled" : ""}>
+          ${data.busy ? "Busy" : "Request Chat"}
+        </button>
+      `;
+      
+      astrologerList.appendChild(div);
+      
+      // 🔥 THESE 3 LINES FIXED - NOW INSIDE if() block only
+      renderStars(child.key);
+      loadReviews(child.key);
+      userCache[child.key] = data.username;
+    }
+  });
+});
   <!-- ASTROLOGER VIEW -->
 <div id="astrologerView" class="hidden">
   <p>Your Rate: <strong><span id="astroRate">0</span></strong> credits/min</p>
