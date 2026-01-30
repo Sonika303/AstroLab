@@ -602,8 +602,33 @@ db.ref("currentChat/" + userId).on("value", snap => {
 }
 
 });
+  auth.getRedirectResult().then(result=>{
+  if(result.user){
+    const user = result.user;
+    userId = user.uid;
 
-
+    const ref = db.ref("presence/"+userId);
+    ref.once("value").then(snap=>{
+      if(!snap.exists()){
+        const uname = "user_" + userId.slice(0,6);
+        ref.set({
+          username: uname,
+          speciality: "",
+          description: "",
+          avatar: "",
+          role: "client",
+          busy: false,
+          online: false,
+          lastSeen: Date.now(),
+          credits: 20,
+          ratePerMinute: 2,
+          firstChatUsed: false
+        });
+        db.ref("usernames/"+uname).set(userId);
+      }
+    });
+  }
+}).catch(console.error);
 /* ================= ERROR ================= */
 function showError(msg){ error.textContent = msg; }
 function toggleSettings(){
@@ -639,13 +664,6 @@ function signup(){
     showError("Password must be at least 6 characters");
     return;
   }
-
-  db.ref("presence").once("value").then(snap=>{
-    let taken = false;
-    snap.forEach(c=>{
-      if(c.val().username === u) taken = true;
-    });
-
     if(taken){
       showError("Username already taken");
       return;
@@ -691,46 +709,23 @@ function login(){
       showError("");
       // onAuthStateChanged will handle UI
     })
-    .catch(err=>{
-      showError(err.message);
-    });
-}
+.catch(err=>{
+  if(err.code === "auth/user-not-found"){
+    showError("No account found with this email");
+  } else if(err.code === "auth/wrong-password"){
+    showError("Incorrect password");
+  } else {
+    showError("Login failed");
+  }
+});
 
 /* ================= GOOGLE LOGIN ================= */
-function googleLogin() {
+function googleLogin(){
   const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
 
-  auth.signInWithPopup(provider)
-    .then((result) => {
-      const user = result.user;
-      userId = user.uid;
-
-      // Create presence record if not exists
-      const ref = db.ref("presence/" + userId);
-      ref.once("value").then(snap => {
-        if (!snap.exists()) {
-          ref.set({
-            username: "user_" + userId.slice(0, 6),
-            speciality: "",
-            description: "",
-            avatar: "",
-            role: "client",
-            busy: false,
-            online: false,
-            lastSeen: Date.now(),
-            credits: 20,
-            ratePerMinute: 2,
-            firstChatUsed: false
-          });
-        }
-      });
-    })
-    .catch((error) => {
-      console.error("Google login error:", error);
-      showError(error.message || "Google login failed");
-    });
+  auth.signInWithRedirect(provider);
 }
-
 /* ================= LOAD PROFILE ================= */
 function loadProfile(){
   if(!userId) return;
@@ -753,7 +748,11 @@ function loadProfile(){
 /* ================= LOGOUT ================= */
 function logout(){
   clearMyRequests();
-  auth.signOut();
+  localStorage.removeItem(ROLE_KEY);
+  localStorage.removeItem(ONLINE_KEY);
+  auth.signOut().then(()=>{
+    location.reload();
+  });
 }
 function saveSettings(){
   if(!userId){
