@@ -574,18 +574,17 @@ if(savedRole === "astrologer" && wasOnline === "1"){
     watchCredits();
     watchAstroRate();
 
- // 🔥 CHAT OPEN + CHAT END LISTENER
 db.ref("currentChat/" + userId).on("value", snap => {
-  if(!snap.exists()) return;
+  if(!snap.exists()){
+    return;
+  }
 
   const id = snap.val();
 
-  db.ref("chats/"+id+"/meta").once("value").then(metaSnap=>{
-    const meta = metaSnap.val();
-    if(meta && meta.active === true){
-      openChat(id);
-    }
-  });
+  // 🔥 FORCE RESET
+  chatStartTime = null;
+
+  openChat(id);
 });
 
 } else {
@@ -1008,6 +1007,7 @@ await db.ref("currentChat").update({
 });
 
   db.ref("requests/"+userId+"/"+queueKey).remove();
+  db.ref("requests/"+clientId).remove();
 
 if(role === "astrologer"){
   startCreditTimer(clientId, userId);
@@ -1058,6 +1058,9 @@ function buyCredits(amount){
 /* ================= OPEN CHAT ================= */
 function openChat(id){
   if(chatView && !chatView.classList.contains("hidden") && chatId === id) return;
+  // 🔥 HARD RESET CHAT STATE
+chatStartTime = null;
+stopChatTimer();
 
   chatId = id;
 
@@ -1166,6 +1169,9 @@ function exitChat(){
   // remove assignments
   db.ref("currentChat/"+userId).remove();
   if(partnerId) db.ref("currentChat/"+partnerId).remove();
+  // 🔥 CLEAN ANY PENDING REQUESTS
+db.ref("requests/"+userId).remove();
+if(partnerId) db.ref("requests/"+partnerId).remove();
 
   // free astrologer
   if(role === "astrologer"){
