@@ -863,8 +863,6 @@ if(r === "astrologer"){
 /* ================= ASTROLOGER ONLINE ================= */
 function toggleOnline(isOnline){
   const ref = db.ref("presence/"+userId);
-// document.getElementById("onlineBtn").textContent =  // COMMENTED OUT - no onlineBtn exists
-  isOnline ? "Go Offline" : "Go Online";
   localStorage.setItem(ONLINE_KEY, isOnline ? "1" : "0");
 
   if(isOnline){
@@ -893,7 +891,6 @@ function toggleOnline(isOnline){
     });
   }
 }
-
 /* ================= QUEUE LISTENER ================= */
 function startQueueListener(){
   queueList.innerHTML="";
