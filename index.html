@@ -888,11 +888,13 @@ function startQueueListener(){
   const div = document.createElement("div");
   div.className = "card";
   div.id = "req_" + snap.key;
-
-  div.innerHTML = `
-    Request from <strong>${clientName}</strong><br>
-    <button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>
-  `;
+   
+div.innerHTML = `
+  Request from <strong>${clientName}</strong><br>
+  <button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>
+  <button style="background:#dc2626"
+    onclick="denyChat('${snap.key}')">Deny</button>
+`;
 
   queueList.appendChild(div);
 });
@@ -964,11 +966,20 @@ function requestChat(astrologerId, rate){
       return;
     }
 
-    db.ref("requests/"+astrologerId).push({
-      client: userId,
-      time: Date.now()
-    });
+db.ref("presence/"+astrologerId).once("value").then(snap=>{
+  const astro = snap.val();
+  if(!astro || astro.online !== true){
+    alert("Astrologer is offline");
+    return;
+  }
 
+  db.ref("requests/"+astrologerId).push({
+    client: userId,
+    time: Date.now()
+  });
+
+  alert("Chat request sent");
+});
     alert("Chat request sent");
   });
 }
@@ -1491,18 +1502,20 @@ function loadReviews(astroId){
       const user = userCache[r.userId] || "User";
       const avatar = userCache[r.userId+"_avatar"] || "https://via.placeholder.com/32";
 
-      const div = document.createElement("div");
-      div.className = "review-item";
-      div.innerHTML = `
-        <div style="display:flex;gap:8px;align-items:center;">
-          <img src="${avatar}" style="width:32px;height:32px;border-radius:50%">
-          <div>
-            <div class="review-user">${user}</div>
-            <div class="review-stars">${"★".repeat(r.stars)}</div>
-          </div>
-        </div>
-        <div>${r.text || ""}</div>
-      `;
+const div = document.createElement("div");
+div.className = "review-item";
+
+div.innerHTML = `
+  <div class="review-user">${user}</div>
+  <div class="review-stars">${"★".repeat(r.stars)}</div>
+  <div>${r.text || ""}</div>
+  ${
+    r.userId === userId
+      ? `<button class="review-delete"
+           onclick="deleteReview('${astroId}')">Delete</button>`
+      : ""
+  }
+`;
       listBox.appendChild(div);
     });
 
@@ -1514,6 +1527,13 @@ function loadReviews(astroId){
 function deleteReview(astroId, reviewId){
   if(!confirm("Delete this review?")) return;
   db.ref(`reviews/${astroId}/${reviewId}`).remove();
+}
+  function denyChat(queueKey){
+  db.ref("requests/"+userId+"/"+queueKey).remove();
+}
+function deleteReview(astroId){
+  if(!confirm("Delete your review?")) return;
+  db.ref(`reviews/${astroId}/${userId}`).remove();
 }
 </script>
 </body>
