@@ -575,7 +575,10 @@ if(savedRole === "astrologer" && wasOnline === "1"){
     watchAstroRate();
 
 db.ref("currentChat/" + userId).on("value", snap => {
-  if(!snap.exists()) return;
+if(!snap.exists()){
+  forceCloseChat("silent");
+  return;
+}
 
   const id = snap.val();
 
@@ -991,31 +994,29 @@ async function acceptChat(queueKey, clientId){
   chatId = db.ref("chats").push().key;
   partnerId = clientId;
 
-  // mark astrologer busy
-  db.ref("presence/"+userId).update({ busy:true });
+  await db.ref("presence/"+userId).update({ busy:true });
 
-  // assign chat to both users
-// 🔥 CREATE META FIRST
-await db.ref("chats/"+chatId+"/meta").set({
-  astrologer: userId,
-  client: clientId,
-  started: Date.now(),
-  active: true
-});
+  // 🔥 create chat meta FIRST
+  await db.ref("chats/"+chatId+"/meta").set({
+    astrologer: userId,
+    client: clientId,
+    started: Date.now(),
+    active: true
+  });
 
-// 🔥 THEN ASSIGN CHAT
-await db.ref("currentChat").update({
-  [userId]: chatId,
-  [clientId]: chatId
-});
+  // 🔥 assign chat to BOTH users
+  await db.ref("currentChat").update({
+    [userId]: chatId,
+    [clientId]: chatId
+  });
 
+  // cleanup
   db.ref("requests/"+userId+"/"+queueKey).remove();
   db.ref("requests/"+clientId).remove();
 
-if(role === "astrologer"){
-  startCreditTimer(clientId, userId);
-}
-  openChat(chatId);
+  if(role === "astrologer"){
+    startCreditTimer(clientId, userId);
+  }
 }
 function buyCredits(amount){
   if(!userId){
@@ -1057,10 +1058,6 @@ function buyCredits(amount){
 
   window.open(link + params, "_blank");
 }
-// 🔥 OPEN CHAT AFTER ALL WRITES COMPLETE
-setTimeout(() => {
-  openChat(chatId);
-}, 200);
 /* ================= OPEN CHAT ================= */
 function openChat(id){
   // 🔥 HARD RESET CHAT STATE
