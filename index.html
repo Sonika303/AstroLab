@@ -450,6 +450,7 @@ button i {
   <span id="chatTimer" style="font-size:12px;color:#6b7280;">00:00</span>
 </h3>
   <div class="chat-box" id="messages"></div>
+    <div id="typingIndicator" style="font-size:12px;color:#6b7280;margin:6px 2px;min-height:16px;"></div>
     <input id="msgInput" placeholder="Type message..." />
     <br>
     <button onclick="sendMessage()">
@@ -491,6 +492,8 @@ let role = "client";
 const ROLE_KEY = "astrolab_role";
 let chatId = null;
 let partnerId = null;
+let typingRef = null;
+let typingTimeout = null;
 let chatRef = null;
 let queueRef = null;
 let userCache = {}; // cache usernames
@@ -509,6 +512,17 @@ const astrologerList = document.getElementById("astrologerList");
 const queueList = document.getElementById("queueList");
 const messagesDiv = document.getElementById("messages");
 const msgInput = document.getElementById("msgInput");
+msgInput.addEventListener("input", () => {
+  if(!chatId || !partnerId) return;
+
+  const ref = db.ref(`chats/${chatId}/typing/${userId}`);
+  ref.set(true);
+
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => {
+    ref.remove();
+  }, 2000);
+});
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const usernameInput = document.getElementById("username");
@@ -1103,7 +1117,27 @@ metaRef.on("value", snap=>{
     messagesDiv.scrollTo({ top: messagesDiv.scrollHeight, behavior:"smooth" });
   });
 }
+typingRef = db.ref(`chats/${id}/typing`);
+typingRef.on("value", snap => {
+  const box = document.getElementById("typingIndicator");
+  if(!box) return;
 
+  const data = snap.val() || {};
+  const usersTyping = Object.keys(data);
+
+  const otherTyping = usersTyping.includes(partnerId);
+  const selfTyping = usersTyping.includes(userId);
+
+  if(selfTyping && otherTyping){
+    box.textContent = "You are typing · Other user is typing…";
+  } else if(otherTyping){
+    box.textContent = "User is typing…";
+  } else if(selfTyping){
+    box.textContent = "You are typing…";
+  } else {
+    box.textContent = "";
+  }
+});
 function forceCloseChat(message){
   stopChatTimer();
 
@@ -1116,6 +1150,17 @@ function forceCloseChat(message){
 
   chatId = null;
   partnerId = null;
+if(chatId){
+  db.ref(`chats/${chatId}/typing/${userId}`).remove();
+}
+
+if(typingRef){
+  typingRef.off();
+  typingRef = null;
+}
+
+const box = document.getElementById("typingIndicator");
+if(box) box.textContent = "";
 
   chatView.classList.add("hidden");
 
@@ -1146,10 +1191,16 @@ function sendMessage(){
   if(!chatId) return;
   const text = msgInput.value.trim();
   if(!text) return;
-  db.ref("chats/"+chatId+"/messages").push({ from:userId, text, time:Date.now() });
+
+  db.ref("chats/"+chatId+"/messages").push({
+    from:userId,
+    text,
+    time:Date.now()
+  });
+
+  db.ref(`chats/${chatId}/typing/${userId}`).remove();
   msgInput.value="";
 }
-
 /* ================= EXIT CHAT ================= */
 function exitChat(){
   if(creditInterval){
@@ -1181,7 +1232,7 @@ if(partnerId) db.ref("requests/"+partnerId).remove();
   } else if(partnerId){
     db.ref("presence/"+partnerId).update({ busy:false });
   }
-
+db.ref(`chats/${chatId}/typing`).remove();
  forceCloseChat("silent");
 }
 async function startCreditTimer(clientId, astrologerId){
