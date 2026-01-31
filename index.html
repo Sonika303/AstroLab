@@ -575,16 +575,19 @@ if(savedRole === "astrologer" && wasOnline === "1"){
     watchAstroRate();
 
 db.ref("currentChat/" + userId).on("value", snap => {
-  if(!snap.exists()){
-    return;
-  }
+  if(!snap.exists()) return;
 
   const id = snap.val();
 
-  // 🔥 FORCE RESET
-  chatStartTime = null;
+  // 🔥 WAIT UNTIL META EXISTS
+  const metaRef = db.ref("chats/" + id + "/meta");
 
-  openChat(id);
+  metaRef.once("value").then(mSnap => {
+    if(!mSnap.exists()) return;
+
+    chatStartTime = null;
+    openChat(id);
+  });
 });
 
 } else {
@@ -1054,10 +1057,12 @@ function buyCredits(amount){
 
   window.open(link + params, "_blank");
 }
-
+// 🔥 OPEN CHAT AFTER ALL WRITES COMPLETE
+setTimeout(() => {
+  openChat(chatId);
+}, 200);
 /* ================= OPEN CHAT ================= */
 function openChat(id){
-  if(chatView && !chatView.classList.contains("hidden") && chatId === id) return;
   // 🔥 HARD RESET CHAT STATE
 chatStartTime = null;
 stopChatTimer();
