@@ -11,7 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5f.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
 <style>
 :root {
@@ -683,30 +683,30 @@ function signup(){
     showError("Password must be at least 6 characters");
     return;
   }
-    auth.createUserWithEmailAndPassword(e,p)
-      .then(res=>{
-        userId = res.user.uid;
-        return db.ref("presence/"+userId).set({
-          username: u,
-          speciality: "",
-          description: "",
-          avatar: "",
-          role: "client",
-          busy: false,
-          online: false,
-          lastSeen: Date.now(),
-          credits: 20,
-          ratePerMinute: 2,
-          firstChatUsed: false
-        });
-      })
-      .then(()=>{
-  error.textContent = "";
-  usernameInput.value = "";
-})
-      .catch(err=>showError(err.message));
-}
 
+  auth.createUserWithEmailAndPassword(e, p)
+    .then(res => {
+      return db.ref("presence/" + res.user.uid).set({
+        username: u,
+        speciality: "",
+        description: "",
+        avatar: "",
+        role: "client",
+        busy: false,
+        online: false,
+        lastSeen: Date.now(),
+        credits: 20,
+        ratePerMinute: 2,
+        firstChatUsed: false
+      });
+    })
+    .then(() => {
+      error.textContent = "";
+    })
+    .catch(err => {
+      showError(err.message);
+    });
+}
 /* ================= LOGIN FUNCTION ================= */
 function login(){
   const e = emailInput.value.trim();
@@ -718,19 +718,12 @@ function login(){
   }
 
   auth.signInWithEmailAndPassword(e, p)
-    .then(()=>{
-      showError("");
-      // onAuthStateChanged will handle UI
+    .then(() => {
+      error.textContent = "";
     })
-.catch(err=>{
-  if(err.code === "auth/user-not-found"){
-    showError("No account found with this email");
-  } else if(err.code === "auth/wrong-password"){
-    showError("Incorrect password");
-  } else {
-    showError("Login failed");
-  }
-});
+    .catch(err => {
+      showError(err.message);
+    });
 }
 /* ================= GOOGLE LOGIN ================= */
 function googleLogin(){
