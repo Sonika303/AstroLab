@@ -478,7 +478,9 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 const storage = firebase.storage();
-const connectedRef = db.ref(".info/connected");
+/* ================= STATE ================= */
+let userId = null;
+  const connectedRef = db.ref(".info/connected");
 connectedRef.on("value", snap=>{
   if(!userId) return;
 
@@ -486,8 +488,6 @@ connectedRef.on("value", snap=>{
     db.ref("currentChat/" + userId).remove();
   }
 });
-/* ================= STATE ================= */
-let userId = null;
 let role = "client";
 const ROLE_KEY = "astrolab_role";
 let chatId = null;
