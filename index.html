@@ -538,15 +538,25 @@ const db = firebase.database();
 const storage = firebase.storage();
 /* ================= STATE ================= */
 let userId = null;
-  const connectedRef = db.ref(".info/connected");
-connectedRef.on("value", snap=>{
-  if(!userId) return;
+const connectedRef = db.ref(".info/connected");
 
-  if(snap.val() === false){
-    db.ref("currentChat/" + userId).remove();
+connectedRef.on("value", snap => {
+  if (!userId) return;
+
+  isConnected = snap.val() === true;
+
+  // 🔥 When connection is restored
+  if (isConnected) {
+    const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
+    const savedRole = localStorage.getItem(ROLE_KEY);
+
+    if (savedRole === "astrologer" && wasOnline) {
+      toggleOnline(true); // 🔥 RE-ANNOUNCE ONLINE
+    }
   }
 });
 let role = "client";
+let isConnected = false;
 const ROLE_KEY = "astrolab_role";
 let chatId = null;
 let partnerId = null;
@@ -643,14 +653,7 @@ if(savedRole){
 }
 const wasOnline = localStorage.getItem(ONLINE_KEY);
 const toggle = document.getElementById("onlineToggle");
-
-if(savedRole === "astrologer" && wasOnline === "1"){
-  if(toggle){
-    toggle.checked = true;
-    document.getElementById("onlineStatusText").textContent = "Online";
-  }
-  toggleOnline(true);
-}
+    
     loadUserCache();
     watchCredits();
     watchAstroRate();
@@ -922,11 +925,14 @@ function applyRole(r){
 
 /* ================= ASTROLOGER ONLINE ================= */
 function toggleOnline(isOnline){
-  const ref = db.ref("presence/"+userId);
+  if (!userId) return;
+
+  const ref = db.ref("presence/" + userId);
   localStorage.setItem(ONLINE_KEY, isOnline ? "1" : "0");
 
-  if(isOnline){
+  if (isOnline) {
     clearMyRequests();
+
     ref.update({
       role: "astrologer",
       online: true,
@@ -934,6 +940,7 @@ function toggleOnline(isOnline){
       lastSeen: Date.now()
     });
 
+    // 🔥 ON DISCONNECT = OFFLINE
     ref.onDisconnect().update({
       online: false,
       busy: false,
@@ -941,14 +948,22 @@ function toggleOnline(isOnline){
     });
 
     startQueueListener();
+
+    document.getElementById("onlineStatusText").textContent = "Online";
   } else {
     clearMyRequests();
     stopQueueListener();
+
+    // 🔥 CANCEL onDisconnect when user manually goes offline
+    ref.onDisconnect().cancel();
+
     ref.update({
       online: false,
       busy: false,
       lastSeen: Date.now()
     });
+
+    document.getElementById("onlineStatusText").textContent = "Offline";
   }
 }
 /* ================= QUEUE LISTENER ================= */
