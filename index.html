@@ -349,6 +349,11 @@ button i {
 <button id="unlinkGoogleBtn" onclick="unlinkGoogle()" style="background:#dc2626">
   Unlink Google Account
 </button>
+<button id="addPasswordBtn"
+  onclick="addPasswordForGoogleUser()"
+  style="background:#0ea5e9; display:none;">
+  Add Email & Password
+</button>
 
 <input id="newEmail" placeholder="New Email">
 <button onclick="changeEmail()">Change Email</button>
@@ -543,13 +548,22 @@ auth.onAuthStateChanged(user => {
     const providers = user.providerData.map(p => p.providerId);
     const linkBtn = document.getElementById("linkGoogleBtn");
 const unlinkBtn = document.getElementById("unlinkGoogleBtn");
+const addPassBtn = document.getElementById("addPasswordBtn");
 
 if(providers.includes("google.com")){
   linkBtn.style.display = "none";
   unlinkBtn.style.display = "block";
+
+  if(!providers.includes("password")){
+    addPassBtn.style.display = "block";
+  } else {
+    addPassBtn.style.display = "none";
+  }
+
 } else {
   linkBtn.style.display = "block";
   unlinkBtn.style.display = "none";
+  addPassBtn.style.display = "none";
 }
 
     providerSpan.textContent =
@@ -1455,24 +1469,23 @@ async function linkGoogle(){
   const user = auth.currentUser;
 
   try {
-    await user.linkWithRedirect(provider);
+    await user.linkWithPopup(provider);
     alert("Google account linked");
     location.reload();
   } catch (err) {
     alert(err.message);
   }
 }
-function hasEmailProvider(user){
+function hasPasswordProvider(user){
   return user.providerData.some(p => p.providerId === "password");
 }
-
 async function unlinkGoogle(){
   const user = auth.currentUser;
 
   if(!hasPasswordProvider(user)){
     alert(
       "You signed up using Google only.\n\n" +
-      "Please set an email & password first, then you can unlink Google."
+      "Please add an email & password first."
     );
     return;
   }
