@@ -1492,20 +1492,32 @@ function clearMyRequests(){
   db.ref("requests/" + userId).remove();
 }
 let selectedStars = {};
-
 function renderStars(astroId){
-  const box = document.getElementById("stars_"+astroId);
+  const box = document.getElementById("stars_" + astroId);
+  if(!box) return;
+
   box.innerHTML = "";
-  for(let i=1;i<=5;i++){
+
+  for(let i = 1; i <= 5; i++){
     const star = document.createElement("i");
-star.className = "fa-solid fa-star";
-if(i <= (selectedStars[astroId] || 0)) star.classList.add("active");
-    star.onclick = ()=>{
+    star.className = "fa-solid fa-star";
+
+    star.onclick = () => {
       selectedStars[astroId] = i;
-      renderStars(astroId);
+      updateStarsUI(astroId, i);
     };
+
     box.appendChild(star);
   }
+}
+
+function updateStarsUI(astroId, count){
+  const box = document.getElementById("stars_" + astroId);
+  if(!box) return;
+
+  [...box.children].forEach((star, idx)=>{
+    star.classList.toggle("active", idx < count);
+  });
 }
 function submitReview(astroId){
   if(!userId) return alert("Login first");
