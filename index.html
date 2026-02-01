@@ -11,7 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5f.1/css/all.min.css">
 
 <style>
 :root {
@@ -1128,27 +1128,6 @@ typingRef.on("value", snap => {
     "";
 });
 }
-typingRef = db.ref(`chats/${id}/typing`);
-typingRef.on("value", snap => {
-  const box = document.getElementById("typingIndicator");
-  if(!box) return;
-
-  const data = snap.val() || {};
-  const usersTyping = Object.keys(data);
-
-  const otherTyping = usersTyping.includes(partnerId);
-  const selfTyping = usersTyping.includes(userId);
-
-  if(selfTyping && otherTyping){
-    box.textContent = "You are typing · Other user is typing…";
-  } else if(otherTyping){
-    box.textContent = "User is typing…";
-  } else if(selfTyping){
-    box.textContent = "You are typing…";
-  } else {
-    box.textContent = "";
-  }
-});
 function forceCloseChat(message){
   stopChatTimer();
 
@@ -1482,7 +1461,7 @@ async function linkGoogle(){
   const user = auth.currentUser;
 
   try {
-    await user.linkWithPopup(provider);
+    await user.linkWithRedirect(provider);
     alert("Google account linked");
     location.reload();
   } catch (err) {
