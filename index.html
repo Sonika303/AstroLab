@@ -683,11 +683,6 @@ function signup(){
     showError("Password must be at least 6 characters");
     return;
   }
-    if(taken){
-      showError("Username already taken");
-      return;
-    }
-
     auth.createUserWithEmailAndPassword(e,p)
       .then(res=>{
         userId = res.user.uid;
@@ -999,13 +994,13 @@ db.ref("presence/"+astrologerId).once("value").then(snap=>{
 
   alert("Chat request sent");
 });
-    alert("Chat request sent");
   });
 }
 
 /* ================= ACCEPT CHAT ================= */
 async function acceptChat(queueKey, clientId){
   chatId = db.ref("chats").push().key;
+  openChat(chatId);
   partnerId = clientId;
 
   await db.ref("presence/"+userId).update({ busy:true });
@@ -1116,6 +1111,22 @@ metaRef.on("value", snap=>{
     messagesDiv.appendChild(div);
     messagesDiv.scrollTo({ top: messagesDiv.scrollHeight, behavior:"smooth" });
   });
+  typingRef = db.ref(`chats/${id}/typing`);
+typingRef.on("value", snap => {
+  const box = document.getElementById("typingIndicator");
+  if(!box) return;
+
+  const data = snap.val() || {};
+  const usersTyping = Object.keys(data);
+
+  const otherTyping = usersTyping.includes(partnerId);
+  const selfTyping = usersTyping.includes(userId);
+
+  box.textContent =
+    otherTyping ? "User is typing…" :
+    selfTyping ? "You are typing…" :
+    "";
+});
 }
 typingRef = db.ref(`chats/${id}/typing`);
 typingRef.on("value", snap => {
@@ -1147,11 +1158,13 @@ function forceCloseChat(message){
     chatRef.off();
     chatRef = null;
   }
+const oldChatId = chatId;
 
-  chatId = null;
-  partnerId = null;
-if(chatId){
-  db.ref(`chats/${chatId}/typing/${userId}`).remove();
+chatId = null;
+partnerId = null;
+
+if(oldChatId){
+  db.ref(`chats/${oldChatId}/typing/${userId}`).remove();
 }
 
 if(typingRef){
