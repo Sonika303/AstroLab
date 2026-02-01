@@ -1469,13 +1469,43 @@ function hasEmailProvider(user){
 async function unlinkGoogle(){
   const user = auth.currentUser;
 
+  if(!hasPasswordProvider(user)){
+    alert(
+      "You signed up using Google only.\n\n" +
+      "Please set an email & password first, then you can unlink Google."
+    );
+    return;
+  }
+
   try {
-    if(!hasEmailProvider(user)){
-  alert("Add email/password before unlinking Google");
-  return;
+    await user.unlink("google.com");
+    alert("Google account unlinked successfully");
+    location.reload();
+  } catch (err) {
+    alert(err.message);
+  }
 }
-await user.unlink("google.com");
-    alert("Google account unlinked");
+async function addPasswordForGoogleUser(){
+  const email = prompt("Enter email for login:");
+  const password = prompt("Set a password (min 6 chars):");
+
+  if(!email || !password){
+    alert("Email and password required");
+    return;
+  }
+
+  if(password.length < 6){
+    alert("Password must be at least 6 characters");
+    return;
+  }
+
+  const user = auth.currentUser;
+  const credential =
+    firebase.auth.EmailAuthProvider.credential(email, password);
+
+  try {
+    await user.linkWithCredential(credential);
+    alert("Email & password added. You can now unlink Google.");
     location.reload();
   } catch (err) {
     alert(err.message);
