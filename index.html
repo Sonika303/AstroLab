@@ -701,15 +701,19 @@ function logout(){
 
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(ONLINE_KEY);
+  
+setTimeout(() => {
+  window.location.replace("auth.html");
+}, 1200);
 
   auth.signOut().then(() => {
-    window.location.href = "/AstroLab/auth.html";
+    window.location.href = "auth.html";
   });
 }
 
 function saveSettings(){
   if(!userId){
-    alert("Please sign in to save settings");
+    alert("You are not logged in.");
     return;
   }
 
@@ -920,7 +924,7 @@ db.ref("presence").on("value", snap=>{
 /* ================= SEND REQUEST ================= */
 function requestChat(astrologerId, rate){
   if(!userId){
-    alert("Please sign in to request a chat");
+    alert("You are not logged in.");
     return;
   }
 
@@ -981,7 +985,7 @@ async function acceptChat(queueKey, clientId){
 }
 function buyCredits(amount){
   if(!userId){
-    alert("Please login first");
+    alert("You are not logged in.");
     return;
   }
 
