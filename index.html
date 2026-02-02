@@ -656,7 +656,7 @@ if(!snap.exists()){
 });
 auth.onAuthStateChanged(user => {
   if (!user) {
-    window.location.replace("/auth.html");
+    window.location.replace("auth.html");
     return;
   }
 });
@@ -687,8 +687,9 @@ function logout(){
   localStorage.removeItem(ONLINE_KEY);
 
   auth.signOut().then(()=>{
-    window.location.replace("/auth.html");
-  });
+  window.location.replace("auth.html");
+});
+
 }
 
 function saveSettings(){
