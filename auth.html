@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>AstroLab — Sign In</title>
+<title>AstroLab — Auth</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!-- Firebase -->
@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
 <style>
+*{box-sizing:border-box}
 body{
   margin:0;
   min-height:100vh;
@@ -20,43 +21,95 @@ body{
   align-items:center;
   justify-content:center;
   font-family:Inter,system-ui;
-  background:#f8fafc;
+  background:linear-gradient(135deg,#eef2ff,#f8fafc);
 }
+
+/* container */
+.auth-wrap{
+  display:flex;
+  gap:24px;
+}
+
+/* cards */
 .card{
-  width:360px;
+  width:340px;
   background:#fff;
-  padding:24px;
-  border-radius:16px;
-  box-shadow:0 20px 40px rgba(0,0,0,.12);
+  padding:26px;
+  border-radius:18px;
+  box-shadow:0 30px 60px rgba(0,0,0,.12);
+  transition:.4s ease;
 }
-input,button{
+
+.card h2{
+  margin:0 0 12px;
+}
+
+.card p{
+  color:#64748b;
+  font-size:14px;
+}
+
+/* buttons */
+button{
+  width:100%;
+  padding:14px;
+  border-radius:14px;
+  border:none;
+  font-weight:600;
+  cursor:pointer;
+  margin-top:12px;
+  transition:.25s;
+}
+button.primary{
+  background:#6366f1;
+  color:#fff;
+}
+button.secondary{
+  background:#f1f5f9;
+}
+button.google{
+  background:#ea4335;
+  color:#fff;
+}
+button:hover{
+  transform:translateY(-2px);
+}
+
+/* form card hidden by default */
+.form-card{
+  opacity:0;
+  pointer-events:none;
+  transform:translateX(40px);
+}
+
+/* active form */
+.form-card.active{
+  opacity:1;
+  pointer-events:auto;
+  transform:translateX(0);
+}
+
+/* inputs */
+input{
   width:100%;
   padding:14px;
   margin-top:10px;
   border-radius:12px;
-}
-input{
   border:1px solid #e5e7eb;
 }
-button{
-  border:none;
-  background:#6366f1;
-  color:#fff;
-  font-weight:600;
-  cursor:pointer;
-}
-button.google{
-  background:#ea4335;
-}
+
+/* error */
 #error{
   color:#dc2626;
-  margin-top:10px;
   font-size:14px;
+  margin-top:10px;
 }
+
+/* small link */
 small{
   display:block;
-  margin-top:12px;
   text-align:center;
+  margin-top:10px;
   color:#64748b;
   cursor:pointer;
 }
@@ -65,26 +118,39 @@ small{
 
 <body>
 
-<div class="card">
-  <h3>Login / Signup</h3>
+<div class="auth-wrap">
 
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
-  <input id="username" placeholder="Username (for signup only)">
+  <!-- LEFT CARD -->
+  <div class="card">
+    <h2>Welcome to AstroLab</h2>
+    <p>Talk to astrologers, manage credits, and chat securely.</p>
 
-  <button onclick="signup()">Create Account</button>
-  <button onclick="login()">Login</button>
+    <button class="primary" onclick="openLogin()">Login</button>
+    <button class="secondary" onclick="openSignup()">Sign Up</button>
+  </div>
 
-  <button class="google" onclick="googleLogin()">
-    <i class="fa-brands fa-google"></i> Continue with Google
-  </button>
+  <!-- RIGHT CARD (FORM) -->
+  <div class="card form-card" id="formCard">
+    <h2 id="formTitle">Login</h2>
 
-  <small onclick="forgotPassword()">Forgot password?</small>
-  <p id="error"></p>
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <input id="username" placeholder="Username (signup only)" style="display:none">
+
+    <button class="primary" id="submitBtn">Login</button>
+
+    <button class="google" onclick="googleLogin()">
+      <i class="fa-brands fa-google"></i> Continue with Google
+    </button>
+
+    <small onclick="forgotPassword()">Forgot password?</small>
+    <p id="error"></p>
+  </div>
+
 </div>
 
 <script>
-/* ===== FIREBASE CONFIG ===== */
+/* ================= FIREBASE ================= */
 firebase.initializeApp({
   apiKey: "AIzaSyALzPqt1EdWG9cWeFf2gZP8Z470D0puPds",
   authDomain: "astrolab-b8956.firebaseapp.com",
@@ -95,31 +161,54 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.database();
 
+/* ================= ELEMENTS ================= */
+const formCard = document.getElementById("formCard");
+const formTitle = document.getElementById("formTitle");
+const submitBtn = document.getElementById("submitBtn");
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const usernameInput = document.getElementById("username");
 const error = document.getElementById("error");
 
-/* ===== AUTO REDIRECT IF LOGGED IN ===== */
+let mode = "login";
+
+/* ================= REDIRECT ================= */
 auth.onAuthStateChanged(user=>{
-  if(user){
-    window.location.replace("/");
-  }
+  if(user) window.location.replace("/");
 });
 
-/* ===== HELPERS ===== */
-function showError(msg){
-  error.textContent = msg;
+/* ================= UI ACTIONS ================= */
+function openLogin(){
+  mode = "login";
+  formTitle.textContent = "Login";
+  submitBtn.textContent = "Login";
+  usernameInput.style.display = "none";
+  formCard.classList.add("active");
 }
 
-/* ===== SIGNUP ===== */
+function openSignup(){
+  mode = "signup";
+  formTitle.textContent = "Sign Up";
+  submitBtn.textContent = "Create Account";
+  usernameInput.style.display = "block";
+  formCard.classList.add("active");
+}
+
+/* ================= SUBMIT ================= */
+submitBtn.onclick = () => {
+  error.textContent = "";
+  if(mode === "login") login();
+  else signup();
+};
+
+/* ================= LOGIC ================= */
 function signup(){
   const e = emailInput.value.trim();
   const p = passwordInput.value.trim();
   const u = usernameInput.value.trim().toLowerCase();
 
   if(!e || !p || !u){
-    showError("All fields required for signup");
+    error.textContent = "All fields required";
     return;
   }
 
@@ -136,56 +225,47 @@ function signup(){
         lastSeen:Date.now()
       });
     })
-    .catch(err=>showError(err.message));
+    .catch(err=>error.textContent=err.message);
 }
 
-/* ===== LOGIN ===== */
 function login(){
   auth.signInWithEmailAndPassword(
     emailInput.value.trim(),
     passwordInput.value.trim()
-  ).catch(err=>showError(err.message));
+  ).catch(err=>error.textContent=err.message);
 }
 
-/* ===== GOOGLE ===== */
 function googleLogin(){
   const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider)
-    .then(res=>{
-      const u = res.user;
-      const ref = db.ref("presence/"+u.uid);
-      ref.once("value").then(s=>{
-        if(!s.exists()){
-          ref.set({
-            username:"user_"+u.uid.slice(0,6),
-            role:"client",
-            online:false,
-            busy:false,
-            credits:20,
-            ratePerMinute:2,
-            firstChatUsed:false,
-            avatar:u.photoURL||"",
-            lastSeen:Date.now()
-          });
-        }
-      });
-    })
-    .catch(err=>showError(err.message));
+  auth.signInWithPopup(provider).then(res=>{
+    const u = res.user;
+    const ref = db.ref("presence/"+u.uid);
+    ref.once("value").then(s=>{
+      if(!s.exists()){
+        ref.set({
+          username:"user_"+u.uid.slice(0,6),
+          role:"client",
+          online:false,
+          busy:false,
+          credits:20,
+          ratePerMinute:2,
+          firstChatUsed:false,
+          avatar:u.photoURL||"",
+          lastSeen:Date.now()
+        });
+      }
+    });
+  }).catch(err=>error.textContent=err.message);
 }
 
-/* ===== RESET PASSWORD ===== */
 function forgotPassword(){
   const e = emailInput.value.trim();
-  if(!e){
-    showError("Enter email first");
-    return;
-  }
+  if(!e){ error.textContent="Enter email first"; return; }
   auth.sendPasswordResetEmail(e)
     .then(()=>alert("Password reset email sent"))
-    .catch(err=>showError(err.message));
+    .catch(err=>error.textContent=err.message);
 }
 </script>
 
 </body>
 </html>
-
