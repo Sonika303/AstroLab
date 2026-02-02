@@ -653,19 +653,6 @@ if(!snap.exists()){
   });
 });
 
-} else {
-  userId = null;
-  chatId = null;
-  partnerId = null;
-
-  authCard.classList.remove("hidden");
-  clientView.classList.add("hidden");
-  astrologerView.classList.add("hidden");
-  chatView.classList.add("hidden");
-
-  document.getElementById("settingsPanel").classList.remove("open");
-}
-
 });
   auth.onAuthStateChanged(user => {
   if (!user) {
