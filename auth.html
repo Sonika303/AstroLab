@@ -1,1 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AstroLab — Sign In</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+body{
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:Inter,system-ui;
+  background:#f8fafc;
+}
+.card{
+  width:360px;
+  background:#fff;
+  padding:24px;
+  border-radius:16px;
+  box-shadow:0 20px 40px rgba(0,0,0,.12);
+}
+input,button{
+  width:100%;
+  padding:14px;
+  margin-top:10px;
+  border-radius:12px;
+}
+input{
+  border:1px solid #e5e7eb;
+}
+button{
+  border:none;
+  background:#6366f1;
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+}
+button.google{
+  background:#ea4335;
+}
+#error{
+  color:#dc2626;
+  margin-top:10px;
+  font-size:14px;
+}
+small{
+  display:block;
+  margin-top:12px;
+  text-align:center;
+  color:#64748b;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <h3>Login / Signup</h3>
+
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+  <input id="username" placeholder="Username (for signup only)">
+
+  <button onclick="signup()">Create Account</button>
+  <button onclick="login()">Login</button>
+
+  <button class="google" onclick="googleLogin()">
+    <i class="fa-brands fa-google"></i> Continue with Google
+  </button>
+
+  <small onclick="forgotPassword()">Forgot password?</small>
+  <p id="error"></p>
+</div>
+
+<script>
+/* ===== FIREBASE CONFIG ===== */
+firebase.initializeApp({
+  apiKey: "AIzaSyALzPqt1EdWG9cWeFf2gZP8Z470D0puPds",
+  authDomain: "astrolab-b8956.firebaseapp.com",
+  databaseURL: "https://astrolab-b8956-default-rtdb.firebaseio.com",
+  projectId: "astrolab-b8956"
+});
+
+const auth = firebase.auth();
+const db = firebase.database();
+
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const usernameInput = document.getElementById("username");
+const error = document.getElementById("error");
+
+/* ===== AUTO REDIRECT IF LOGGED IN ===== */
+auth.onAuthStateChanged(user=>{
+  if(user){
+    window.location.replace("/");
+  }
+});
+
+/* ===== HELPERS ===== */
+function showError(msg){
+  error.textContent = msg;
+}
+
+/* ===== SIGNUP ===== */
+function signup(){
+  const e = emailInput.value.trim();
+  const p = passwordInput.value.trim();
+  const u = usernameInput.value.trim().toLowerCase();
+
+  if(!e || !p || !u){
+    showError("All fields required for signup");
+    return;
+  }
+
+  auth.createUserWithEmailAndPassword(e,p)
+    .then(res=>{
+      return db.ref("presence/"+res.user.uid).set({
+        username:u,
+        role:"client",
+        online:false,
+        busy:false,
+        credits:20,
+        ratePerMinute:2,
+        firstChatUsed:false,
+        lastSeen:Date.now()
+      });
+    })
+    .catch(err=>showError(err.message));
+}
+
+/* ===== LOGIN ===== */
+function login(){
+  auth.signInWithEmailAndPassword(
+    emailInput.value.trim(),
+    passwordInput.value.trim()
+  ).catch(err=>showError(err.message));
+}
+
+/* ===== GOOGLE ===== */
+function googleLogin(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider)
+    .then(res=>{
+      const u = res.user;
+      const ref = db.ref("presence/"+u.uid);
+      ref.once("value").then(s=>{
+        if(!s.exists()){
+          ref.set({
+            username:"user_"+u.uid.slice(0,6),
+            role:"client",
+            online:false,
+            busy:false,
+            credits:20,
+            ratePerMinute:2,
+            firstChatUsed:false,
+            avatar:u.photoURL||"",
+            lastSeen:Date.now()
+          });
+        }
+      });
+    })
+    .catch(err=>showError(err.message));
+}
+
+/* ===== RESET PASSWORD ===== */
+function forgotPassword(){
+  const e = emailInput.value.trim();
+  if(!e){
+    showError("Enter email first");
+    return;
+  }
+  auth.sendPasswordResetEmail(e)
+    .then(()=>alert("Password reset email sent"))
+    .catch(err=>showError(err.message));
+}
+</script>
+
+</body>
+</html>
 
