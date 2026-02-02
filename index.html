@@ -579,7 +579,7 @@ const s_desc = document.getElementById("s_desc");
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
   if (!user) {
-    window.location.replace("/AstroLab/auth.html");
+    window.location.replace("auth.html");
     return;
   }
   if(user){
