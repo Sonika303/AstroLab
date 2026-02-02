@@ -437,25 +437,6 @@ button i {
 
 <div class="main">
 
-  <!-- AUTH -->
-  <div id="authCard" class="card">
-    <h3>Login / Signup</h3>
-    <input id="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
-<label class="online-toggle">
-  <input type="checkbox" id="onlineToggle" onchange="onOnlineToggleChange(this)">
-  <span class="slider"></span>
-  <span id="onlineStatusText">Offline</span>
-</label>
-    <input id="username" placeholder="Username (unique)">
-    <button type="button" onclick="signup()">Signup</button>
-    <button type="button" onclick="login()">Login</button>
-    <button type="button" onclick="forgotPassword()" style="background:#64748b">
-  Forgot Password
-</button>
-    <button type="button" onclick="googleLogin()">Sign in with Google</button>
-    <p id="error"></p>
-  </div>
     <!-- CLIENT VIEW -->
   <div id="clientView" class="hidden">
     <h3>Online Astrologers</h3>
@@ -571,11 +552,9 @@ let chatTimerInterval = null;
 const ONLINE_KEY = "astrolab_online";
 
 /* ================= ELEMENTS ================= */
-const authCard = document.getElementById("authCard");
 const clientView = document.getElementById("clientView");
 const astrologerView = document.getElementById("astrologerView");
 const chatView = document.getElementById("chatView");
-const error = document.getElementById("error");
 const astrologerList = document.getElementById("astrologerList");
 const queueList = document.getElementById("queueList");
 const messagesDiv = document.getElementById("messages");
@@ -591,9 +570,6 @@ msgInput.addEventListener("input", () => {
     ref.remove();
   }, 2000);
 });
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const usernameInput = document.getElementById("username");
 const avatarInput = document.getElementById("avatarInput");
 const avatarPreview = document.getElementById("avatarPreview");
 const s_name = document.getElementById("s_name");
@@ -691,118 +667,12 @@ if(!snap.exists()){
 }
 
 });
-/* ================= ERROR ================= */
-function showError(msg){ error.textContent = msg; }
-function toggleSettings(){
-  if(!userId){
-    alert("Please sign in to open settings");
+  auth.onAuthStateChanged(user => {
+  if (!user) {
+    window.location.replace("/auth");
     return;
   }
-  document.getElementById("settingsPanel").classList.toggle("open");
-}
-  let tapCount = 0;
-function secretTap(){
-  tapCount++;
-  if(tapCount >= 5){
-    tapCount = 0;
-    resetEveryone();
-  }
-}
-
-
-
-/* ================= SIGNUP ================= */
-function signup(){
-  const e = emailInput.value.trim();
-  const p = passwordInput.value.trim();
-  const u = usernameInput.value.trim().toLowerCase();
-
-  if(!e || !p || !u){
-    showError("Email, password and username are required");
-    return;
-  }
-
-  if(p.length < 6){
-    showError("Password must be at least 6 characters");
-    return;
-  }
-
-  auth.createUserWithEmailAndPassword(e, p)
-    .then(res => {
-      return db.ref("presence/" + res.user.uid).set({
-        username: u,
-        speciality: "",
-        description: "",
-        avatar: "",
-        role: "client",
-        busy: false,
-        online: false,
-        lastSeen: Date.now(),
-        credits: 20,
-        ratePerMinute: 2,
-        firstChatUsed: false
-      });
-    })
-    .then(() => {
-      error.textContent = "";
-    })
-    .catch(err => {
-      showError(err.message);
-    });
-}
-/* ================= LOGIN FUNCTION ================= */
-function login(){
-  const e = emailInput.value.trim();
-  const p = passwordInput.value.trim();
-
-  if(!e || !p){
-    showError("Email and password are required");
-    return;
-  }
-
-  auth.signInWithEmailAndPassword(e, p)
-    .then(() => {
-      error.textContent = "";
-    })
-    .catch(err => {
-      showError(err.message);
-    });
-}
-/* ================= GOOGLE LOGIN ================= */
-function googleLogin(){
-  const provider = new firebase.auth.GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: "select_account" });
-
-  auth.signInWithPopup(provider)
-    .then(result => {
-      const user = result.user;
-      userId = user.uid;
-
-      const ref = db.ref("presence/" + userId);
-      ref.once("value").then(snap => {
-        if (!snap.exists()) {
-          const uname = "user_" + userId.slice(0,6);
-          ref.set({
-            username: uname,
-            speciality: "",
-            description: "",
-            avatar: user.photoURL || "",
-            role: "client",
-            busy: false,
-            online: false,
-            lastSeen: Date.now(),
-            credits: 20,
-            ratePerMinute: 2,
-            firstChatUsed: false
-          });
-          db.ref("usernames/" + uname).set(userId);
-        }
-      });
-    })
-    .catch(err => {
-      showError(err.message);
-    });
-}
+});
 /* ================= LOAD PROFILE ================= */
 function loadProfile(){
   if(!userId) return;
@@ -1515,22 +1385,6 @@ async function changeEmail() {
   } catch (err) {
     alert("Please login again to change email");
   }
-}
-function forgotPassword(){
-  const email = document.getElementById("email").value.trim();
-
-  if(!email){
-    alert("Enter your email first");
-    return;
-  }
-
-  auth.sendPasswordResetEmail(email)
-    .then(()=>{
-      alert("Password reset email sent");
-    })
-    .catch(err=>{
-      alert(err.message);
-    });
 }
 async function linkGoogle(){
   const provider = new firebase.auth.GoogleAuthProvider();
