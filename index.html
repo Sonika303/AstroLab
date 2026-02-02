@@ -654,12 +654,13 @@ if(!snap.exists()){
 });
 
 });
-  auth.onAuthStateChanged(user => {
+auth.onAuthStateChanged(user => {
   if (!user) {
-    window.location.replace("/auth");
+    window.location.replace("/auth.html");
     return;
   }
 });
+
 /* ================= LOAD PROFILE ================= */
 function loadProfile(){
   if(!userId) return;
@@ -684,10 +685,12 @@ function logout(){
   clearMyRequests();
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(ONLINE_KEY);
+
   auth.signOut().then(()=>{
-    location.reload();
+    window.location.replace("/auth.html");
   });
 }
+
 function saveSettings(){
   if(!userId){
     alert("Please sign in to save settings");
