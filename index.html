@@ -578,6 +578,10 @@ const s_desc = document.getElementById("s_desc");
 
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
+  if (!user) {
+    window.location.replace("/AstroLab/auth.html");
+    return;
+  }
   if(user){
     setTimeout(() => {
   const providerSpan = document.getElementById("loginProvider");
@@ -654,13 +658,6 @@ if(!snap.exists()){
 });
 
 });
-auth.onAuthStateChanged(user => {
-  if (!user) {
-    window.location.replace("/AstroLab/auth.html");
-    return;
-  }
-});
-
 /* ================= LOAD PROFILE ================= */
 function loadProfile(){
   if(!userId) return;
@@ -682,14 +679,32 @@ function loadProfile(){
 
 /* ================= LOGOUT ================= */
 function logout(){
+  if(!userId) return;
+
+  // 🔥 stop everything
+  stopChatTimer();
+  if(creditInterval){
+    clearInterval(creditInterval);
+    creditInterval = null;
+  }
+
+  // 🔥 mark offline safely
+  db.ref("presence/" + userId).update({
+    online: false,
+    busy: false,
+    lastSeen: Date.now()
+  });
+
+  // 🔥 cleanup db + local state
   clearMyRequests();
+  db.ref("currentChat/" + userId).remove();
+
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(ONLINE_KEY);
 
-  auth.signOut().then(()=>{
-  window.location.replace("/AstroLab/auth.html");
-});
-
+  auth.signOut().then(() => {
+    window.location.href = "/AstroLab/auth.html";
+  });
 }
 
 function saveSettings(){
