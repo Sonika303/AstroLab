@@ -711,6 +711,29 @@ function showNotSignedIn(){
     </div>
   `;
 }
+function ensurePresence(user){
+  if(!user || !user.uid) return;
+
+  const ref = db.ref("presence/" + user.uid);
+
+  ref.once("value").then(snap=>{
+    if(snap.exists()) return;
+
+    ref.set({
+      username: user.displayName || "user_" + user.uid.slice(0,6),
+      avatar: user.photoURL || "",
+      role: "client",
+      credits: 20,
+      ratePerMinute: 1,
+      speciality: "",
+      description: "",
+      online: false,
+      busy: false,
+      firstChatUsed: false,
+      lastSeen: Date.now()
+    });
+  });
+}
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
   if (!user) {
@@ -720,6 +743,7 @@ auth.onAuthStateChanged(user => {
 
   // ✅ USER IS AUTHENTICATED
   userId = user.uid;
+ensurePresence(user);
 
   clientView.classList.remove("hidden");
   astrologerView.classList.add("hidden");
@@ -920,11 +944,12 @@ function toggleOnline(isOnline){
       lastSeen: Date.now()
     });
 
-ref.onDisconnect().set({
+ref.onDisconnect().update({
   online: false,
   busy: false,
   lastSeen: firebase.database.ServerValue.TIMESTAMP
 });
+
 
     startQueueListener();
 
@@ -1287,8 +1312,6 @@ async function startCreditTimer(clientId, astrologerId){
   const astroRef = db.ref("presence/"+astrologerId);
 
   db.ref("chats/"+chatId+"/meta/earned").set(0);
-  // 🔥 Mark first chat as used ONCE
-db.ref("presence/"+clientId+"/firstChatUsed").set(true);
 
   creditInterval = setInterval(async () => {
     const clientSnap = await clientRef.get();
