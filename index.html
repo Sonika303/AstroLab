@@ -113,7 +113,7 @@ body {
   top: 0;
   width: 320px;
   height: 100%;
-  background: var(--card);
+  background: var(--bg-soft);
   border-left: 1px solid var(--border);
   padding: 18px;
   z-index: 1000;
@@ -1544,6 +1544,13 @@ function deleteReview(astroId, reviewId){
 function deleteReview(astroId){
   if(!confirm("Delete your review?")) return;
   db.ref(`reviews/${astroId}/${userId}`).remove();
+}
+/* ================= SETTINGS PANEL TOGGLE ================= */
+function toggleSettings(){
+  const panel = document.getElementById("settingsPanel");
+  if(!panel) return;
+
+  panel.classList.toggle("open");
 }
 </script>
 </body>
