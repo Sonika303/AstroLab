@@ -568,6 +568,23 @@ auth.onAuthStateChanged(user => {
   loadUserCache();
   watchCredits();
   watchAstroRate();
+  
+  // 🔥 RESTORE ONLINE STATE AFTER REFRESH
+  const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
+  const savedRole = localStorage.getItem(ROLE_KEY);
+
+  const onlineToggle = document.getElementById("onlineToggle");
+  if (onlineToggle) {
+    onlineToggle.checked = wasOnline;
+  }
+
+  if (savedRole === "astrologer" && wasOnline) {
+    toggleOnline(true); // 🔥 FORCE RE-ONLINE
+  }
+  const onlineText = document.getElementById("onlineStatusText");
+if (onlineText) {
+  onlineText.textContent = wasOnline ? "Online" : "Offline";
+}
 
   const savedRole = localStorage.getItem(ROLE_KEY);
   if (savedRole) switchRole(savedRole);
@@ -746,12 +763,11 @@ function toggleOnline(isOnline){
       lastSeen: Date.now()
     });
 
-    // 🔥 ON DISCONNECT = OFFLINE
-    ref.onDisconnect().update({
-      online: false,
-      busy: false,
-      lastSeen: Date.now()
-    });
+ref.onDisconnect().set({
+  online: false,
+  busy: false,
+  lastSeen: firebase.database.ServerValue.TIMESTAMP
+});
 
     startQueueListener();
 
@@ -1208,6 +1224,7 @@ function loadUserCache(){
     }
   });
 }
+  
 function updateRate(){
   if(chatId){
     alert("You cannot change rate during live chat");
