@@ -582,81 +582,59 @@ auth.onAuthStateChanged(user => {
     window.location.replace("auth.html");
     return;
   }
-  if(user){
-    setTimeout(() => {
-  const providerSpan = document.getElementById("loginProvider");
-  const emailSpan = document.getElementById("linkedEmail");
 
-  if (providerSpan && emailSpan) {
-    const providers = user.providerData.map(p => p.providerId);
-    const linkBtn = document.getElementById("linkGoogleBtn");
-const unlinkBtn = document.getElementById("unlinkGoogleBtn");
-const addPassBtn = document.getElementById("addPasswordBtn");
+  userId = user.uid;
 
-if(providers.includes("google.com")){
-  linkBtn.style.display = "none";
-  unlinkBtn.style.display = "block";
+  clientView.classList.remove("hidden");
+  astrologerView.classList.add("hidden");
+  chatView.classList.add("hidden");
 
-  if(!providers.includes("password")){
-    addPassBtn.style.display = "block";
-  } else {
-    addPassBtn.style.display = "none";
-  }
+  setTimeout(() => {
+    const providerSpan = document.getElementById("loginProvider");
+    const emailSpan = document.getElementById("linkedEmail");
 
-} else {
-  linkBtn.style.display = "block";
-  unlinkBtn.style.display = "none";
-  addPassBtn.style.display = "none";
-}
+    if (providerSpan && emailSpan) {
+      const providers = user.providerData.map(p => p.providerId);
+      const linkBtn = document.getElementById("linkGoogleBtn");
+      const unlinkBtn = document.getElementById("unlinkGoogleBtn");
+      const addPassBtn = document.getElementById("addPasswordBtn");
 
-    providerSpan.textContent =
-      providers.includes("google.com")
-        ? "Google"
-        : "Email & Password";
+      if (providers.includes("google.com")) {
+        linkBtn.style.display = "none";
+        unlinkBtn.style.display = "block";
+        addPassBtn.style.display = providers.includes("password") ? "none" : "block";
+      } else {
+        linkBtn.style.display = "block";
+        unlinkBtn.style.display = "none";
+        addPassBtn.style.display = "none";
+      }
 
-    emailSpan.textContent = user.email || "Not linked";
-  }
-}, 500);
-    userId = user.uid;
+      providerSpan.textContent =
+        providers.includes("google.com") ? "Google" : "Email & Password";
 
-    authCard.classList.add("hidden");
-    clientView.classList.remove("hidden");
-    astrologerView.classList.add("hidden");
-    chatView.classList.add("hidden");
-    astrologerView.classList.add("hidden");
-    chatView.classList.add("hidden");
+      emailSpan.textContent = user.email || "Not linked";
+    }
+  }, 300);
 
-    loadProfile();
-    const savedRole = localStorage.getItem(ROLE_KEY);
-if(savedRole){
-  switchRole(savedRole);
-}
-const wasOnline = localStorage.getItem(ONLINE_KEY);
-const toggle = document.getElementById("onlineToggle");
-    
-    loadUserCache();
-    watchCredits();
-    watchAstroRate();
+  loadProfile();
+  loadUserCache();
+  watchCredits();
+  watchAstroRate();
 
-db.ref("currentChat/" + userId).on("value", snap => {
-if(!snap.exists()){
-  forceCloseChat("silent");
-  return;
-}
+  const savedRole = localStorage.getItem(ROLE_KEY);
+  if (savedRole) switchRole(savedRole);
 
-  const id = snap.val();
+  db.ref("currentChat/" + userId).on("value", snap => {
+    if (!snap.exists()) {
+      forceCloseChat("silent");
+      return;
+    }
 
-  // 🔥 WAIT UNTIL META EXISTS
-  const metaRef = db.ref("chats/" + id + "/meta");
-
-  metaRef.once("value").then(mSnap => {
-    if(!mSnap.exists()) return;
-
-    chatStartTime = null;
-    openChat(id);
+    const chatId = snap.val();
+    db.ref("chats/" + chatId + "/meta").once("value").then(mSnap => {
+      if (mSnap.exists()) openChat(chatId);
+    });
   });
-});
-
 });
 /* ================= LOAD PROFILE ================= */
 function loadProfile(){
