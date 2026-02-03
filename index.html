@@ -518,7 +518,7 @@ button i {
   <input id="s_name" placeholder="Display Name">
   <input id="s_speciality" placeholder="Speciality">
   <input id="s_desc" placeholder="Description">
-<button onclick="saveSettings()">Save</button>
+<button type="button" onclick="saveSettings()">Save</button>
 </div>
 
 <div class="sidebar">
@@ -527,7 +527,7 @@ button i {
   <button type="button" onclick="switchRole('client')">
   <i class="fa-solid fa-user"></i> Client
 </button>
-  <button id="astroBtn" onclick="switchRole('astrologer')">
+  <button type="button" id="astroBtn" onclick="switchRole('astrologer')">
   <i class="fa-solid fa-star"></i> Astrologer
 </button>
   <button type="button" onclick="toggleSettings()">
@@ -551,8 +551,8 @@ button i {
   <div class="card">
     <h3>Buy Credits</h3>
     <button type="button" onclick="buyCredits(49)">💠 ₹49 — Get 50 Credits</button>
-    <button onclick="buyCredits(99)">⭐ ₹99 — Get 100 Credits</button>
-    <button onclick="buyCredits(249)">🔥 ₹249 — Get 250 Credits</button>
+    <button type="button" onclick="buyCredits(99)">⭐ ₹99 — Get 100 Credits</button>
+    <button type="button" onclick="buyCredits(249)">🔥 ₹249 — Get 250 Credits</button>
     <small style="color:#64748b;">Credits will be added within 24 hours after payment.</small>
   </div>
 
@@ -563,7 +563,7 @@ button i {
 
   <!-- 🔥 EDIT RATE -->
   <input id="rateInput" type="number" min="1" placeholder="Set credits per minute">
-  <button onclick="updateRate()">Update Rate</button>
+  <button type="button" onclick="updateRate()">Update Rate</button>
 
   <h3>Astrologer Dashboard</h3>
 <p>
@@ -598,7 +598,7 @@ button i {
     <button type="button" onclick="sendMessage()">
   <i class="fa-solid fa-paper-plane"></i> Send
 </button>
-    <button onclick="exitChat()">
+    <button type="button" onclick="exitChat()">
   <i class="fa-solid fa-xmark"></i> End Chat
 </button>
   </div>
@@ -1015,8 +1015,8 @@ function startQueueListener(){
    
 div.innerHTML = `
   Request from <strong>${clientName}</strong><br>
-  <button onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>
-  <button style="background:#dc2626"
+  <button type="button" onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>
+  <button type="button" style="background:#dc2626"
     onclick="denyChat('${snap.key}')">Deny</button>
 `;
 
@@ -1056,13 +1056,13 @@ db.ref("presence").on("value", snap=>{
         <p>${data.description || ""}</p>
         <div class="review-box">
           <textarea id="reviewText_${child.key}" placeholder="Write a review (optional)"></textarea>
-          <button onclick="submitReview('${child.key}')">Submit Review</button>
+          <button type="button" onclick="submitReview('${child.key}')">Submit Review</button>
         </div>
         <div class="review-panel">
           <div class="review-stats" id="reviewStats_${child.key}"></div>
           <div class="review-scroll" id="reviews_${child.key}"></div>
         </div>
-        <button onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
+        <button type="button" onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
           ${(!data.online || data.busy) ? "disabled" : ""}>
           ${data.busy ? "Busy" : "Request Chat"}
         </button>
