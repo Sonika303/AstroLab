@@ -735,30 +735,31 @@ function ensurePresence(user){
   });
 }
 function healPresence(uid){
+  if(!uid) return;
+
   const ref = db.ref("presence/" + uid);
 
   ref.once("value").then(snap=>{
     if(!snap.exists()) return;
 
-    const data = snap.val();
+    const data = snap.val() || {};
 
-    const fixed = {
-      username: data.username ?? "user_" + uid.slice(0,6),
-      avatar: data.avatar ?? "",
+    ref.update({
+      username: data.username || "user_" + uid.slice(0,6),
+      avatar: data.avatar || "",
       credits: data.credits ?? 20,
       ratePerMinute: data.ratePerMinute ?? 1,
-      speciality: data.speciality ?? "",
-      description: data.description ?? "",
+      speciality: data.speciality || "",
+      description: data.description || "",
       firstChatUsed: data.firstChatUsed ?? false,
       online: data.online ?? false,
       busy: data.busy ?? false,
-      role: data.role ?? "client",
-      lastSeen: data.lastSeen ?? Date.now()
-    };
-
-    ref.update(f seeed);
+      role: data.role || "client",
+      lastSeen: Date.now()
+    });
   });
 }
+
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
   if (!user) {
@@ -769,6 +770,10 @@ auth.onAuthStateChanged(user => {
 userId = user.uid;
 ensurePresence(user);
 healPresence(user.uid);
+
+setInterval(() => {
+  healPresence(user.uid);
+}, 60000);
 
   clientView.classList.remove("hidden");
   astrologerView.classList.add("hidden");
