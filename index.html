@@ -550,7 +550,37 @@ const avatarPreview = document.getElementById("avatarPreview");
 const s_name = document.getElementById("s_name");
 const s_speciality = document.getElementById("s_speciality");
 const s_desc = document.getElementById("s_desc");
-
+/* ================= IF NOT SIGNED IN ================= */
+function showNotSignedIn(){
+  document.body.innerHTML = `
+    <div style="
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-family:Inter,system-ui;
+      background:#f8fafc;
+    ">
+      <div style="
+        background:#fff;
+        padding:32px;
+        border-radius:18px;
+        box-shadow:0 30px 60px rgba(0,0,0,.12);
+        text-align:center;
+        max-width:380px;
+      ">
+        <h2>Oops 😕</h2>
+        <p style="color:#64748b;margin:12px 0 20px;">
+          Looks like you are not signed in.<br>
+          Please sign up or log in to continue.
+        </p>
+        <button onclick="location.href='auth.html'">
+          Go to Sign In
+        </button>
+      </div>
+    </div>
+  `;
+}
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
   if (!user) {
@@ -586,7 +616,6 @@ if (onlineText) {
   onlineText.textContent = wasOnline ? "Online" : "Offline";
 }
 
-  const savedRole = localStorage.getItem(ROLE_KEY);
   if (savedRole) switchRole(savedRole);
 
   db.ref("currentChat/" + userId).on("value", snap => {
