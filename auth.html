@@ -172,11 +172,47 @@ const error = document.getElementById("error");
 
 let mode = "login";
 
-/* ================= REDIRECT ================= */
-auth.onAuthStateChanged(user=>{
-  if(user) window.location.replace("/");
+/* ================= AUTH STATE (NO REDIRECT) ================= */
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.body.innerHTML = `
+      <div style="
+        min-height:100vh;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-family:Inter,system-ui;
+        background:linear-gradient(135deg,#eef2ff,#f8fafc);
+      ">
+        <div style="
+          background:#fff;
+          padding:32px;
+          border-radius:18px;
+          box-shadow:0 30px 60px rgba(0,0,0,.12);
+          text-align:center;
+          max-width:360px;
+        ">
+          <h2 style="margin:0 0 12px;">You’re signed in</h2>
+          <p style="color:#64748b;margin:0 0 20px;">
+            Your account is already active.<br>
+            You can safely close this page.
+          </p>
+          <button onclick="window.close()" style="
+            padding:12px 20px;
+            border-radius:12px;
+            border:none;
+            background:#6366f1;
+            color:#fff;
+            font-weight:600;
+            cursor:pointer;
+          ">
+            Close
+          </button>
+        </div>
+      </div>
+    `;
+  }
 });
-
 /* ================= UI ACTIONS ================= */
 function openLogin(){
   mode = "login";
