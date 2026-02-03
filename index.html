@@ -524,16 +524,16 @@ button i {
 <div class="sidebar">
   <h2>AstroLab</h2>
   <div id="secretReset" style="height:20px; opacity:0;" onclick="secretTap()"></div>
-  <button onclick="switchRole('client')">
+  <button type="button" onclick="switchRole('client')">
   <i class="fa-solid fa-user"></i> Client
 </button>
   <button id="astroBtn" onclick="switchRole('astrologer')">
   <i class="fa-solid fa-star"></i> Astrologer
 </button>
-  <button onclick="toggleSettings()">
+  <button type="button" onclick="toggleSettings()">
   <i class="fa-solid fa-gear"></i> Settings
 </button>
-<button onclick="logout()">
+<button type="button" onclick="logout()">
   <i class="fa-solid fa-right-from-bracket"></i> Logout
 </button>
 </div>
@@ -550,7 +550,7 @@ button i {
 
   <div class="card">
     <h3>Buy Credits</h3>
-    <button onclick="buyCredits(49)">💠 ₹49 — Get 50 Credits</button>
+    <button type="button" onclick="buyCredits(49)">💠 ₹49 — Get 50 Credits</button>
     <button onclick="buyCredits(99)">⭐ ₹99 — Get 100 Credits</button>
     <button onclick="buyCredits(249)">🔥 ₹249 — Get 250 Credits</button>
     <small style="color:#64748b;">Credits will be added within 24 hours after payment.</small>
@@ -595,7 +595,7 @@ button i {
     <div id="typingIndicator" style="font-size:12px;color:#6b7280;margin:6px 2px;min-height:16px;"></div>
     <input id="msgInput" placeholder="Type message..." />
     <br>
-    <button onclick="sendMessage()">
+    <button type="button" onclick="sendMessage()">
   <i class="fa-solid fa-paper-plane"></i> Send
 </button>
     <button onclick="exitChat()">
