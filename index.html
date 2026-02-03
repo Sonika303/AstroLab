@@ -714,11 +714,11 @@ function showNotSignedIn(){
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
   if (!user) {
-  showNotSignedIn();
-  return;
-}
-}
+    showNotSignedIn();
+    return;
+  }
 
+  // ✅ USER IS AUTHENTICATED
   userId = user.uid;
 
   clientView.classList.remove("hidden");
@@ -729,7 +729,7 @@ auth.onAuthStateChanged(user => {
   loadUserCache();
   watchCredits();
   watchAstroRate();
-  
+
   // 🔥 RESTORE ONLINE STATE AFTER REFRESH
   const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
   const savedRole = localStorage.getItem(ROLE_KEY);
@@ -740,12 +740,13 @@ auth.onAuthStateChanged(user => {
   }
 
   if (savedRole === "astrologer" && wasOnline) {
-    toggleOnline(true); // 🔥 FORCE RE-ONLINE
+    toggleOnline(true);
   }
+
   const onlineText = document.getElementById("onlineStatusText");
-if (onlineText) {
-  onlineText.textContent = wasOnline ? "Online" : "Offline";
-}
+  if (onlineText) {
+    onlineText.textContent = wasOnline ? "Online" : "Offline";
+  }
 
   if (savedRole) switchRole(savedRole);
 
@@ -755,9 +756,9 @@ if (onlineText) {
       return;
     }
 
-    const chatId = snap.val();
-    db.ref("chats/" + chatId + "/meta").once("value").then(mSnap => {
-      if (mSnap.exists()) openChat(chatId);
+    const cid = snap.val();
+    db.ref("chats/" + cid + "/meta").once("value").then(mSnap => {
+      if (mSnap.exists()) openChat(cid);
     });
   });
 });
