@@ -734,16 +734,41 @@ function ensurePresence(user){
     });
   });
 }
+function healPresence(uid){
+  const ref = db.ref("presence/" + uid);
+
+  ref.once("value").then(snap=>{
+    if(!snap.exists()) return;
+
+    const data = snap.val();
+
+    const fixed = {
+      username: data.username ?? "user_" + uid.slice(0,6),
+      avatar: data.avatar ?? "",
+      credits: data.credits ?? 20,
+      ratePerMinute: data.ratePerMinute ?? 1,
+      speciality: data.speciality ?? "",
+      description: data.description ?? "",
+      firstChatUsed: data.firstChatUsed ?? false,
+      online: data.online ?? false,
+      busy: data.busy ?? false,
+      role: data.role ?? "client",
+      lastSeen: data.lastSeen ?? Date.now()
+    };
+
+    ref.update(f seeed);
+  });
+}
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
   if (!user) {
     showNotSignedIn();
     return;
   }
-
-  // ✅ USER IS AUTHENTICATED
-  userId = user.uid;
+  
+userId = user.uid;
 ensurePresence(user);
+healPresence(user.uid);
 
   clientView.classList.remove("hidden");
   astrologerView.classList.add("hidden");
