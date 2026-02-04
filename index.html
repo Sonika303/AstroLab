@@ -1505,21 +1505,26 @@ function endChat(reason){
 
   const endedChatId = chatId;
 
-  db.ref("chats/"+endedChatId+"/meta").update({
+  // mark chat inactive
+  db.ref("chats/" + endedChatId + "/meta").update({
     active: false,
     endReason: reason || "Chat ended"
   });
 
-  db.ref("currentChat/"+userId).remove();
-  if(partnerId) db.ref("currentChat/"+partnerId).remove();
+  // cleanup assignments
+  db.ref("currentChat/" + userId).remove();
+  if(partnerId) db.ref("currentChat/" + partnerId).remove();
 
+  // free astrologer
   if(role === "astrologer"){
-    db.ref("presence/"+userId).update({ busy:false });
+    db.ref("presence/" + userId).update({ busy:false });
   } else if(partnerId){
-    db.ref("presence/"+partnerId).update({ busy:false });
+    db.ref("presence/" + partnerId).update({ busy:false });
   }
 
-  forceCloseChat("silent");
+  db.ref(`chats/${endedChatId}/typing`).remove();
+
+  forceCloseChat(reason || "Chat ended");
 }
 function clearMyRequests(){
   if(!userId) return;
