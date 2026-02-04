@@ -1501,23 +1501,25 @@ function stopChatTimer(){
   }
 }
 function endChat(reason){
-  stopChatTimer();
-  if(creditInterval){
-    clearInterval(creditInterval);
-    creditInterval = null;
-  }
-setTimeout(()=>{
-  if(chatId){
-    db.ref("chats/" + chatId).remove();
-  }
-}, 5000);
   if(!chatId) return;
 
-  db.ref("chats/"+chatId+"/meta").update({
+  const endedChatId = chatId;
+
+  db.ref("chats/"+endedChatId+"/meta").update({
     active: false,
-    endedAt: Date.now(),
-    endReason: reason
+    endReason: reason || "Chat ended"
   });
+
+  db.ref("currentChat/"+userId).remove();
+  if(partnerId) db.ref("currentChat/"+partnerId).remove();
+
+  if(role === "astrologer"){
+    db.ref("presence/"+userId).update({ busy:false });
+  } else if(partnerId){
+    db.ref("presence/"+partnerId).update({ busy:false });
+  }
+
+  forceCloseChat("silent");
 }
 function clearMyRequests(){
   if(!userId) return;
