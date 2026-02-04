@@ -646,6 +646,7 @@ connectedRef.on("value", snap => {
 let role = "client";
 let isConnected = false;
 const ROLE_KEY = "astrolab_role";
+const ONLINE_KEY = "astrolab_online";
 let chatId = null;
 let partnerId = null;
 let typingRef = null;
@@ -1353,8 +1354,8 @@ async function startCreditTimer(clientId, astrologerId){
   db.ref("chats/"+chatId+"/meta/earned").set(0);
 
   creditInterval = setInterval(async () => {
-    const clientSnap = await clientRef.get();
-    const astroSnap = await astroRef.get();
+const clientSnap = await clientRef.once("value");
+const astroSnap = await astroRef.once("value");
 
     const credits = clientSnap.val().credits || 0;
     const rate = astroSnap.val().ratePerMinute || 1;
@@ -1369,15 +1370,6 @@ if(firstChatUsed === false){
   // 🔥 MARK USED ONLY ONCE (FIRST MINUTE)
   await clientRef.update({ firstChatUsed: true });
 }
-
-// 🔥 10% discount ONLY for first chat (permanent)
-let discountApplied = false;
-
-if(firstChatUsed === false){
-  finalRate = Math.ceil(rate * 0.90); // 🔥 10% OFF
-  discountApplied = true;
-}
-
     if(credits < finalRate){
       endChat("Client ran out of credits");
       return;
@@ -1622,20 +1614,12 @@ div.innerHTML = `
       : "No reviews yet";
   });
 }
-function deleteReview(astroId, reviewId){
-  if(!confirm("Delete this review?")) return;
-  db.ref(`reviews/${astroId}/${reviewId}`).remove();
-}
   function denyChat(queueKey){
   db.ref("requests/"+userId+"/"+queueKey).remove();
 }
 function deleteReview(astroId){
   if(!confirm("Delete your review?")) return;
   db.ref(`reviews/${astroId}/${userId}`).remove();
-}
-function clearMyRequests(){
-  if(!userId) return;
-  db.ref("requests/"+userId).remove();
 }
 /* ================= SETTINGS PANEL TOGGLE ================= */
 function toggleSettings(){
