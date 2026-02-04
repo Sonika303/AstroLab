@@ -1017,7 +1017,7 @@ function startQueueListener(){
    
 div.innerHTML = `
   Request from <strong>${clientName}</strong><br>
-  <button type="button" onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>
+<button type="button" onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>
   <button type="button" style="background:#dc2626"
     onclick="denyChat('${snap.key}')">Deny</button>
 `;
@@ -1099,7 +1099,15 @@ db.ref("presence/"+astrologerId).once("value").then(snap=>{
     return;
   }
 
-  db.ref("requests/"+astrologerId).push({
+const reqRef = db.ref("requests/"+astrologerId+"/"+userId);
+
+reqRef.once("value").then(snap=>{
+  if(snap.exists()){
+    alert("You already requested this astrologer");
+    return;
+  }
+
+  reqRef.set({
     client: userId,
     time: Date.now()
   });
@@ -1132,8 +1140,8 @@ async function acceptChat(queueKey, clientId){
   });
 
   // cleanup
-  db.ref("requests/"+userId+"/"+queueKey).remove();
-  db.ref("requests/"+clientId).remove();
+// cleanup — remove ONLY this request
+db.ref("requests/"+userId+"/"+queueKey).remove();
 
   if(role === "astrologer"){
     startCreditTimer(clientId, userId);
@@ -1621,6 +1629,10 @@ function deleteReview(astroId, reviewId){
 function deleteReview(astroId){
   if(!confirm("Delete your review?")) return;
   db.ref(`reviews/${astroId}/${userId}`).remove();
+}
+function clearMyRequests(){
+  if(!userId) return;
+  db.ref("requests/"+userId).remove();
 }
 /* ================= SETTINGS PANEL TOGGLE ================= */
 function toggleSettings(){
