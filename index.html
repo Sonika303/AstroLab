@@ -193,6 +193,7 @@ body {
 }
 /* ---------- CARDS ---------- */
 .card {
+  position: relative; /* ✅ REQUIRED */
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
   border-radius: var(--radius-lg);
@@ -220,6 +221,7 @@ body {
   );
   opacity: 0;
   transition: opacity .4s;
+  pointer-events: none; /* ✅ THIS FIXES CLICK ISSUE */
 }
 
 .card:hover::after {
