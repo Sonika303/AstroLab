@@ -1505,17 +1505,14 @@ function endChat(reason){
 
   const endedChatId = chatId;
 
-  // mark chat inactive
   db.ref("chats/" + endedChatId + "/meta").update({
     active: false,
     endReason: reason || "Chat ended"
   });
 
-  // cleanup assignments
   db.ref("currentChat/" + userId).remove();
   if(partnerId) db.ref("currentChat/" + partnerId).remove();
 
-  // free astrologer
   if(role === "astrologer"){
     db.ref("presence/" + userId).update({ busy:false });
   } else if(partnerId){
