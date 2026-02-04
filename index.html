@@ -626,6 +626,10 @@ const db = firebase.database();
 const storage = firebase.storage();
 /* ================= STATE ================= */
 let userId = null;
+let role = "client";
+let isConnected = false;
+const ROLE_KEY = "astrolab_role";
+const ONLINE_KEY = "astrolab_online";
 const connectedRef = db.ref(".info/connected");
 
 connectedRef.on("value", snap => {
@@ -643,10 +647,6 @@ connectedRef.on("value", snap => {
     }
   }
 });
-let role = "client";
-let isConnected = false;
-const ROLE_KEY = "astrolab_role";
-const ONLINE_KEY = "astrolab_online";
 let chatId = null;
 let partnerId = null;
 let typingRef = null;
