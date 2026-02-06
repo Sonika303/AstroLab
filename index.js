@@ -356,8 +356,6 @@ function toggleOnline(isOnline){
   localStorage.setItem(ONLINE_KEY, isOnline ? "1" : "0");
 
   if (isOnline) {
-    clearMyRequests();
-
     ref.update({
       role: "astrologer",
       online: true,
@@ -365,23 +363,21 @@ function toggleOnline(isOnline){
       lastSeen: Date.now()
     });
 
-ref.onDisconnect().update({
-  online: false,
-  busy: false,
-  lastSeen: firebase.database.ServerValue.TIMESTAMP
-});
-
+    ref.onDisconnect().update({
+      online: false,
+      busy: false,
+      lastSeen: firebase.database.ServerValue.TIMESTAMP
+    });
 
     startQueueListener();
-
     document.getElementById("onlineStatusText").textContent = "Online";
+
   } else {
+    // ✅ SAFE to clear when going OFFLINE
     clearMyRequests();
     stopQueueListener();
 
-    // 🔥 CANCEL onDisconnect when user manually goes offline
     ref.onDisconnect().cancel();
-
     ref.update({
       online: false,
       busy: false,
