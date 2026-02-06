@@ -513,9 +513,8 @@ function requestChat(astrologerId, rate){
 }
 /* ================= ACCEPT CHAT ================= */
 async function acceptChat(queueKey, clientId){
-  chatId = db.ref("chats").push().key;
-  openChat(chatId);
-  partnerId = clientId;
+chatId = db.ref("chats").push().key;
+partnerId = clientId;
 
   await db.ref("presence/"+userId).update({ busy:true });
 
@@ -532,6 +531,7 @@ async function acceptChat(queueKey, clientId){
     [userId]: chatId,
     [clientId]: chatId
   });
+  openChat(chatId); // ✅ open ONLY after both users are linked
 
   // cleanup
 // cleanup — remove ONLY this request
@@ -612,10 +612,10 @@ if(meta.active === false){
   partnerId = meta.client === userId ? meta.astrologer : meta.client;
 
   // 🔥 FIX TIMER RESET (USE ORIGINAL START TIME)
-  if(!chatStartTime && meta.started){
-    chatStartTime = meta.started;
-    startChatTimer();
-  }
+if(meta.started){
+  chatStartTime = meta.started;
+  startChatTimer();
+}
 });
 
   if(chatRef) chatRef.off();
@@ -648,14 +648,17 @@ typingRef.on("value", snap => {
 }
 function forceCloseChat(message){
   stopChatTimer();
-if(chatStartTime && role === "astrologer"){
-  const elapsed = Date.now() - chatStartTime;
 
-  if(elapsed < 60000){
-    db.ref("chats/"+endedChatId+"/meta/earned")
-      .transaction(e => (e || 0) + 1);
+  const endedChatId = chatId; // ✅ DEFINE FIRST
+
+  // ✅ minimum 1-minute earning
+  if(chatStartTime && role === "astrologer"){
+    const elapsed = Date.now() - chatStartTime;
+    if(elapsed < 60000 && endedChatId){
+      db.ref("chats/"+endedChatId+"/meta/earned")
+        .transaction(e => (e || 0) + 1);
+    }
   }
-}
 
   const endedChatId = chatId; // ✅ SAVE FIRST
 
@@ -751,7 +754,6 @@ if(partnerId) db.ref("requests/"+partnerId).remove();
     db.ref("presence/"+partnerId).update({ busy:false });
   }
 db.ref(`chats/${chatId}/typing`).remove();
- forceCloseChat("silent");
 }
 async function startCreditTimer(clientId, astrologerId){
   const clientRef = db.ref("presence/"+clientId);
