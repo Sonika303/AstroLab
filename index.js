@@ -473,37 +473,47 @@ function requestChat(astrologerId, rate){
     return;
   }
 
-  db.ref("presence/"+userId+"/credits").once("value").then(snap=>{
-    const credits = snap.val() || 0;
+  db.ref("presence/" + userId + "/credits")
+    .once("value")
+    .then(snap => {
+      const credits = snap.val() || 0;
 
-    if(credits < rate){
-      alert("Not enough credits for this astrologer");
-      return;
-    }
+      if(credits < rate){
+        alert("Not enough credits for this astrologer");
+        return;
+      }
 
-db.ref("presence/"+astrologerId).once("value").then(snap=>{
-  const astro = snap.val();
-  if(!astro || astro.online !== true){
-    alert("Astrologer is offline");
-    return;
-  }
+      return db.ref("presence/" + astrologerId).once("value");
+    })
+    .then(snap => {
+      if(!snap) return;
 
-const reqRef = db.ref("requests/"+astrologerId+"/"+userId);
+      const astro = snap.val();
+      if(!astro || astro.online !== true){
+        alert("Astrologer is offline");
+        return;
+      }
 
-reqRef.once("value").then(snap=>{
-  if(snap.exists()){
-    alert("You already requested this astrologer");
-    return;
-  }
+      const reqRef = db.ref("requests/" + astrologerId + "/" + userId);
 
-  reqRef.set({
-    client: userId,
-    time: Date.now()
-  });
+      return reqRef.once("value").then(snap=>{
+        if(snap.exists()){
+          alert("You already requested this astrologer");
+          return;
+        }
 
-  alert("Chat request sent");
-});
-  });
+        return reqRef.set({
+          client: userId,
+          time: Date.now()
+        }).then(()=>{
+          alert("Chat request sent");
+        });
+      });
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Failed to send chat request");
+    });
 }
 /* ================= ACCEPT CHAT ================= */
 async function acceptChat(queueKey, clientId){
