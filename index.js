@@ -584,8 +584,10 @@ function buyCredits(amount){
 /* ================= OPEN CHAT ================= */
 function openChat(id){
   // 🔥 HARD RESET CHAT STATE
-chatStartTime = null;
-stopChatTimer();
+if(!chatStartTime){
+  chatStartTime = null;
+  stopChatTimer();
+}
 
   chatId = id;
 
@@ -599,11 +601,13 @@ stopChatTimer();
   // 🔥 REAL-TIME END DETECTION
 metaRef.on("value", snap=>{
   const meta = snap.val();
-  if(!meta || meta.active === false){
-    metaRef.off();
-    forceCloseChat(meta?.endReason || "Chat ended");
-    return;
-  }
+if(!meta) return; // 🔥 ignore transient nulls
+
+if(meta.active === false){
+  metaRef.off();
+  forceCloseChat(meta.endReason || "Chat ended");
+  return;
+}
 
   partnerId = meta.client === userId ? meta.astrologer : meta.client;
 
@@ -644,6 +648,14 @@ typingRef.on("value", snap => {
 }
 function forceCloseChat(message){
   stopChatTimer();
+if(chatStartTime && role === "astrologer"){
+  const elapsed = Date.now() - chatStartTime;
+
+  if(elapsed < 60000){
+    db.ref("chats/"+endedChatId+"/meta/earned")
+      .transaction(e => (e || 0) + 1);
+  }
+}
 
   const endedChatId = chatId; // ✅ SAVE FIRST
 
@@ -745,12 +757,11 @@ async function startCreditTimer(clientId, astrologerId){
   const clientRef = db.ref("presence/"+clientId);
   const astroRef = db.ref("presence/"+astrologerId);
 
-  db.ref("chats/"+chatId+"/meta/earned").set(0);
-
   creditInterval = setInterval(async () => {
 const clientSnap = await clientRef.once("value");
 const astroSnap = await astroRef.once("value");
-
+await db.ref("chats/"+chatId+"/meta/earned")
+  .transaction(e => e === null ? 0 : e);
     const credits = clientSnap.val().credits || 0;
     const rate = astroSnap.val().ratePerMinute || 1;
     const firstChatUsed = clientSnap.val().firstChatUsed;
