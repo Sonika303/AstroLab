@@ -513,33 +513,47 @@ function requestChat(astrologerId, rate){
 }
 /* ================= ACCEPT CHAT ================= */
 async function acceptChat(queueKey, clientId){
-chatId = db.ref("chats").push().key;
-partnerId = clientId;
+  if(chatId) return; // local guard
 
-  await db.ref("presence/"+userId).update({ busy:true });
+  const astroRef = db.ref("presence/"+userId);
 
-  // 🔥 create chat meta FIRST
+  // 🔒 HARD LOCK using TRANSACTION
+  const lockResult = await astroRef.child("busy").transaction(busy=>{
+    if(busy === true) return; // abort
+    return true; // lock
+  });
+
+  if(!lockResult.committed){
+    alert("You are already in a chat");
+    return;
+  }
+
+  // 🔥 create chat id AFTER lock
+  chatId = db.ref("chats").push().key;
+  partnerId = clientId;
+
+  // 🔥 create meta
   await db.ref("chats/"+chatId+"/meta").set({
     astrologer: userId,
     client: clientId,
-    started: Date.now(),
+    started: firebase.database.ServerValue.TIMESTAMP,
     active: true
   });
 
-  // 🔥 assign chat to BOTH users
+  // 🔥 link BOTH users (authoritative)
   await db.ref("currentChat").update({
     [userId]: chatId,
     [clientId]: chatId
   });
-  openChat(chatId); // ✅ open ONLY after both users are linked
 
-  // cleanup
-// cleanup — remove ONLY this request
-db.ref("requests/"+userId+"/"+queueKey).remove();
+  // 🔥 remove ONLY this request
+  await db.ref("requests/"+userId+"/"+queueKey).remove();
 
-  if(role === "astrologer"){
-    startCreditTimer(clientId, userId);
-  }
+  // 🔥 open chat AFTER linking
+  openChat(chatId);
+
+  // 🔥 start billing ONLY ONCE
+  startCreditTimer(clientId, userId);
 }
 function buyCredits(amount){
   if(!userId){
