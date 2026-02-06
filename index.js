@@ -649,64 +649,64 @@ typingRef.on("value", snap => {
 function forceCloseChat(message){
   stopChatTimer();
 
-  const endedChatId = chatId; // ✅ DEFINE FIRST
+  // ✅ SAVE CHAT ID ONCE
+  const endedChatId = chatId;
 
-  // ✅ minimum 1-minute earning
-  if(chatStartTime && role === "astrologer"){
+  // ✅ minimum 1-minute earning for astrologer
+  if(chatStartTime && role === "astrologer" && endedChatId){
     const elapsed = Date.now() - chatStartTime;
-    if(elapsed < 60000 && endedChatId){
+    if(elapsed < 60000){
       db.ref("chats/"+endedChatId+"/meta/earned")
         .transaction(e => (e || 0) + 1);
     }
   }
 
-  const endedChatId = chatId; // ✅ SAVE FIRST
-
+  // 🔥 cleanup listeners
   if(chatRef){
     chatRef.off();
     chatRef = null;
   }
-const oldChatId = chatId;
 
-chatId = null;
-partnerId = null;
+  if(typingRef){
+    typingRef.off();
+    typingRef = null;
+  }
 
-if(oldChatId){
-  db.ref(`chats/${oldChatId}/typing/${userId}`).remove();
-}
+  if(endedChatId){
+    db.ref(`chats/${endedChatId}/typing/${userId}`).remove();
+  }
 
-if(typingRef){
-  typingRef.off();
-  typingRef = null;
-}
+  chatId = null;
+  partnerId = null;
+  chatStartTime = null;
 
-const box = document.getElementById("typingIndicator");
-if(box) box.textContent = "";
+  const box = document.getElementById("typingIndicator");
+  if(box) box.textContent = "";
 
   chatView.classList.add("hidden");
 
-  if(role === "astrologer" && endedChatId){
-    db.ref("chats/"+endedChatId+"/meta/earned")
-      .once("value")
-      .then(snap=>{
-        const earned = snap.val() || 0;
-        alert(`Chat ended.\nYou earned ${earned} credits.`);
-      });
-  } else {
-    if(message && message !== "silent"){
-  alert(message);
-}
-  }
-
-  if(role === "client"){
-    clientView.classList.remove("hidden");
-    astrologerView.classList.add("hidden");
-  } else {
+  // ✅ UI restore
+  if(role === "astrologer"){
     astrologerView.classList.remove("hidden");
     clientView.classList.add("hidden");
+
+    if(endedChatId){
+      db.ref("chats/"+endedChatId+"/meta/earned")
+        .once("value")
+        .then(snap=>{
+          const earned = snap.val() || 0;
+          alert(`Chat ended.\nYou earned ${earned} credits.`);
+        });
+    }
+  } else {
+    clientView.classList.remove("hidden");
+    astrologerView.classList.add("hidden");
+
+    if(message && message !== "silent"){
+      alert(message);
+    }
   }
 }
-
 /* ================= SEND MESSAGE ================= */
 function sendMessage(){
   if(!chatId) return;
