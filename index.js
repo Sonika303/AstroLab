@@ -513,44 +513,54 @@ function requestChat(astrologerId, rate){
 }
 /* ================= ACCEPT CHAT ================= */
 async function acceptChat(queueKey, clientId){
-  if(chatId) return; // local guard
+  if(chatId) return;
 
   const astroRef = db.ref("presence/"+userId);
 
-  // 🔒 HARD LOCK using TRANSACTION
   const lockResult = await astroRef.child("busy").transaction(busy=>{
-    if(busy === true) return; // abort
-    return true; // lock
+    if(busy === true) return;
+    return true;
   });
 
   if(!lockResult.committed){
-    alert("You are already in a chat");
+    alert("You are already in chat");
     return;
   }
 
-  // 🔥 create chat id AFTER lock
-  chatId = db.ref("chats").push().key;
-  partnerId = clientId;
+  try{
+    chatId = db.ref("chats").push().key;
+    chatStartTime = Date.now(); // ✅ FIXED
+    partnerId = clientId;
 
-await db.ref("chats/"+chatId+"/meta").set({
-  astrologer: userId,
-  client: clientId,
-  started: chatStartTime,
-  active: true,
-  earned: 0
-});
+    await db.ref("chats/"+chatId+"/meta").set({
+      astrologer: userId,
+      client: clientId,
+      started: chatStartTime,
+      active: true,
+      earned: 0
+    });
 
-  // 🔥 link BOTH users (authoritative)
-  await db.ref("currentChat").update({
-    [userId]: chatId,
-    [clientId]: chatId
-  });
+    await db.ref("currentChat").update({
+      [userId]: chatId,
+      [clientId]: chatId
+    });
 
-  // 🔥 remove ONLY this request
-  await db.ref("requests/"+userId+"/"+queueKey).remove();
+    await db.ref("requests/"+userId+"/"+queueKey).remove();
 
-  // 🔥 open chat AFTER linking
-  openChat(chatId);
+    openChat(chatId);
+
+  } catch(err){
+    console.error(err);
+
+    // 🔥 UNLOCK IF ANYTHING FAILS
+    await astroRef.update({ busy:false });
+
+    chatId = null;
+    partnerId = null;
+    chatStartTime = null;
+
+    alert("Failed to start chat. Try again.");
+  }
 }
 function buyCredits(amount){
   if(!userId){
@@ -594,7 +604,6 @@ function buyCredits(amount){
 }
 /* ================= OPEN CHAT ================= */
 function openChat(id){
-  partnerId = clientId;
   chatStartTime = Date.now();
   chatId = id;
 
