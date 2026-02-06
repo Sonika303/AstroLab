@@ -16,6 +16,7 @@ const db = firebase.database();
 const storage = firebase.storage();
 /* ================= STATE ================= */
 let userId = null;
+let billingActive = false;
 let role = "client";
 let isConnected = false;
 const ROLE_KEY = "astrolab_role";
@@ -233,8 +234,7 @@ function logout(){
   // 🔥 stop everything
   stopChatTimer();
   if(creditInterval){
-    clearInterval(creditInterval);
-    creditInterval = null;
+    stopBilling();
   }
 
   // 🔥 mark offline safely
@@ -532,13 +532,13 @@ async function acceptChat(queueKey, clientId){
   chatId = db.ref("chats").push().key;
   partnerId = clientId;
 
-  // 🔥 create meta
-  await db.ref("chats/"+chatId+"/meta").set({
-    astrologer: userId,
-    client: clientId,
-    started: firebase.database.ServerValue.TIMESTAMP,
-    active: true
-  });
+await db.ref("chats/"+chatId+"/meta").set({
+  astrologer: userId,
+  client: clientId,
+  started: chatStartTime,
+  active: true,
+  earned: 0
+});
 
   // 🔥 link BOTH users (authoritative)
   await db.ref("currentChat").update({
@@ -551,9 +551,6 @@ async function acceptChat(queueKey, clientId){
 
   // 🔥 open chat AFTER linking
   openChat(chatId);
-
-  // 🔥 start billing ONLY ONCE
-  startCreditTimer(clientId, userId);
 }
 function buyCredits(amount){
   if(!userId){
@@ -597,12 +594,8 @@ function buyCredits(amount){
 }
 /* ================= OPEN CHAT ================= */
 function openChat(id){
-  // 🔥 HARD RESET CHAT STATE
-if(!chatStartTime){
-  chatStartTime = null;
-  stopChatTimer();
-}
-
+  partnerId = clientId;
+  chatStartTime = Date.now();
   chatId = id;
 
   clientView.classList.add("hidden");
@@ -629,6 +622,11 @@ if(meta.active === false){
 if(meta.started){
   chatStartTime = meta.started;
   startChatTimer();
+
+  // ✅ START BILLING HERE (ONLY ONCE)
+  if(!billingActive && role === "astrologer"){
+    startCreditTimer(meta.client, meta.astrologer);
+  }
 }
 });
 
@@ -739,8 +737,7 @@ function sendMessage(){
 /* ================= EXIT CHAT ================= */
 function exitChat(){
   if(creditInterval){
-  clearInterval(creditInterval);
-  creditInterval = null;
+  stopBilling();
 }
   if(!chatId) return;
 
@@ -770,49 +767,50 @@ if(partnerId) db.ref("requests/"+partnerId).remove();
 db.ref(`chats/${chatId}/typing`).remove();
 }
 async function startCreditTimer(clientId, astrologerId){
+  if(billingActive) return; // 🔒 HARD GUARD
+  billingActive = true;
+
   const clientRef = db.ref("presence/"+clientId);
-  const astroRef = db.ref("presence/"+astrologerId);
+  const astroRef  = db.ref("presence/"+astrologerId);
+  const metaRef   = db.ref("chats/"+chatId+"/meta");
 
   creditInterval = setInterval(async () => {
-const clientSnap = await clientRef.once("value");
-const astroSnap = await astroRef.once("value");
-await db.ref("chats/"+chatId+"/meta/earned")
-  .transaction(e => e === null ? 0 : e);
-    const credits = clientSnap.val().credits || 0;
-    const rate = astroSnap.val().ratePerMinute || 1;
-    const firstChatUsed = clientSnap.val().firstChatUsed;
+    const snap = await metaRef.once("value");
+    const meta = snap.val();
 
-let finalRate = rate;
-
-// 🔥 APPLY DISCOUNT ONLY IF FIRST CHAT
-if(firstChatUsed === false){
-  finalRate = Math.ceil(rate * 0.90); // 10% OFF
-
-  // 🔥 MARK USED ONLY ONCE (FIRST MINUTE)
-  await clientRef.update({ firstChatUsed: true });
-}
-    if(credits < finalRate){
-      endChat("Client ran out of credits");
+    if(!meta || meta.active !== true){
+      stopBilling();
       return;
     }
 
-    await clientRef.update({
-  credits: credits - finalRate
-});
+    // 🔒 ATOMIC CREDIT TRANSACTION
+    const result = await clientRef.child("credits").transaction(credits=>{
+      if(credits === null) return;
+      if(credits < 1) return; // abort
+      return credits - 1;
+    });
 
+    if(!result.committed){
+      endChat("Client ran out of credits");
+      stopBilling();
+      return;
+    }
+
+    // ✅ PAY ASTRO
     await astroRef.child("credits")
-      .transaction(c => (c || 0) + finalRate);
+      .transaction(c => (c || 0) + 1);
 
-    db.ref("chats/"+chatId+"/meta/earned")
-      .transaction(e => (e || 0) + finalRate);
+    // ✅ TRACK EARNED (SAFE)
+    await metaRef.child("earned")
+      .transaction(e => (e || 0) + 1);
 
+    // ✅ DAILY EARNINGS
     const todayKey = new Date().toLocaleDateString("en-CA");
     db.ref(`earnings/${astrologerId}/${todayKey}`)
-      .transaction(e => (e || 0) + finalRate);
+      .transaction(e => (e || 0) + 1);
 
   }, 60000);
 }
-
 /* ================= Reset ================= */
   function resetEveryone(){
   if(!confirm("RESET ALL ONLINE USERS?")) return;
@@ -1049,3 +1047,10 @@ function toggleSettings(){
 
   panel.classList.toggle("open");
 } 
+function stopBilling(){
+  if(creditInterval){
+    clearInterval(creditInterval);
+    creditInterval = null;
+  }
+  billingActive = false;
+}
