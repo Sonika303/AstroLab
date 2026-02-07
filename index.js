@@ -543,12 +543,9 @@ async function acceptChat(queueKey, clientId){
       earned: 0
     });
 
-    await db.ref("currentChat").update({
-      [userId]: chatId,
-      [clientId]: chatId
-    });
-
-    await db.ref("requests/"+userId+"/"+queueKey).remove();
+await db.ref("currentChat/" + userId).set(chatId);
+await db.ref("currentChat/" + clientId).set(chatId);
+await db.ref("requests/"+userId+"/"+queueKey).remove();
 
 
   } catch(err){
