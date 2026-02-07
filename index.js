@@ -22,22 +22,6 @@ let isConnected = false;
 const ROLE_KEY = "astrolab_role";
 const ONLINE_KEY = "astrolab_online";
 const connectedRef = db.ref(".info/connected");
-
-connectedRef.on("value", snap => {
-  if (!userId) return;
-
-  isConnected = snap.val() === true;
-
-  // 🔥 When connection is restored
-  if (isConnected) {
-    const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
-    const savedRole = localStorage.getItem(ROLE_KEY);
-
-    if (savedRole === "astrologer" && wasOnline) {
-      toggleOnline(true); // 🔥 RE-ANNOUNCE ONLINE
-    }
-  }
-});
 let chatId = null;
 let chatClosing = false;
 let partnerId = null;
@@ -73,7 +57,12 @@ const avatarPreview = document.getElementById("avatarPreview");
 const s_name = document.getElementById("s_name");
 const s_speciality = document.getElementById("s_speciality");
 const s_desc = document.getElementById("s_desc");
-/* ================= IF NOT SIGNED IN ================= */
+/* ================= UI HELPERS ================= */
+function toggleSettings(){
+  const panel = document.getElementById("settingsPanel");
+  if(!panel) return;
+  panel.classList.toggle("open");
+}
 function showNotSignedIn(){
   document.body.innerHTML = `
     <div style="
@@ -104,6 +93,79 @@ function showNotSignedIn(){
     </div>
   `;
 }
+function loadProfile(){
+  if(!userId) return;
+
+  db.ref("presence/"+userId).once("value").then(snap=>{
+    const d = snap.val();
+    if(!d) return;
+
+    s_name.value = d.username || "";
+    s_speciality.value = d.speciality || "";
+    s_desc.value = d.description || "";
+
+    // 🔥 force reload avatar
+    avatarPreview.src = d.avatar 
+      ? d.avatar + "&r=" + Date.now()
+      : "https://via.placeholder.com/80";
+  });
+}
+function updateProfile(name, avatar){
+  const data = {
+    username: name,
+    speciality: s_speciality.value,
+    description: s_desc.value
+  };
+  if(avatar) data.avatar = avatar;
+  db.ref("presence/"+userId).update(data);
+}
+function saveSettings(){
+  if(!userId){
+    alert("You are not logged in.");
+    return;
+  }
+
+  const file = avatarInput.files[0];
+  const name = s_name.value.trim().toLowerCase();
+  if(!name) return showError("Name required");
+
+  // base profile data
+  const baseData = {
+    username: name,
+    speciality: s_speciality.value,
+    description: s_desc.value
+  };
+
+  // NO IMAGE → just save text
+  if(!file){
+    db.ref("presence/"+userId).update(baseData).then(()=>{
+      alert("Settings saved");
+    });
+    return;
+  }
+
+  // IMAGE UPLOAD
+  const ref = storage.ref(`avatars/${userId}.jpg`);
+  ref.put(file)
+    .then(()=>ref.getDownloadURL())
+    .then(url=>{
+      // 🔥 cache-busting
+      const bustedUrl = url + "?v=" + Date.now();
+
+      baseData.avatar = bustedUrl;
+
+      return db.ref("presence/"+userId).update(baseData).then(()=>{
+        avatarPreview.src = bustedUrl;
+        avatarInput.value = "";
+        alert("Settings saved");
+      });
+    })
+    .catch(err=>{
+      console.error(err);
+      showError("Image upload failed");
+    });
+}
+/* ================= PRESENCE ================= */
 function ensurePresence(user){
   if(!user || !user.uid) return;
 
@@ -152,7 +214,21 @@ function healPresence(uid){
     });
   });
 }
+connectedRef.on("value", snap => {
+  if (!userId) return;
 
+  isConnected = snap.val() === true;
+
+  // 🔥 When connection is restored
+  if (isConnected) {
+    const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
+    const savedRole = localStorage.getItem(ROLE_KEY);
+
+    if (savedRole === "astrologer" && wasOnline) {
+      toggleOnline(true); // 🔥 RE-ANNOUNCE ONLINE
+    }
+  }
+});
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
   if (!user) {
@@ -211,25 +287,6 @@ db.ref("currentChat/" + userId).on("value", snap => {
   });
 });
 });
-/* ================= LOAD PROFILE ================= */
-function loadProfile(){
-  if(!userId) return;
-
-  db.ref("presence/"+userId).once("value").then(snap=>{
-    const d = snap.val();
-    if(!d) return;
-
-    s_name.value = d.username || "";
-    s_speciality.value = d.speciality || "";
-    s_desc.value = d.description || "";
-
-    // 🔥 force reload avatar
-    avatarPreview.src = d.avatar 
-      ? d.avatar + "&r=" + Date.now()
-      : "https://via.placeholder.com/80";
-  });
-}
-
 /* ================= LOGOUT ================= */
 function logout(){
   if(!userId) return;
@@ -258,66 +315,7 @@ function logout(){
     window.location.href = "auth.html";
   });
 }
-
-function saveSettings(){
-  if(!userId){
-    alert("You are not logged in.");
-    return;
-  }
-
-  const file = avatarInput.files[0];
-  const name = s_name.value.trim().toLowerCase();
-  if(!name) return showError("Name required");
-
-  // base profile data
-  const baseData = {
-    username: name,
-    speciality: s_speciality.value,
-    description: s_desc.value
-  };
-
-  // NO IMAGE → just save text
-  if(!file){
-    db.ref("presence/"+userId).update(baseData).then(()=>{
-      alert("Settings saved");
-    });
-    return;
-  }
-
-  // IMAGE UPLOAD
-  const ref = storage.ref(`avatars/${userId}.jpg`);
-  ref.put(file)
-    .then(()=>ref.getDownloadURL())
-    .then(url=>{
-      // 🔥 cache-busting
-      const bustedUrl = url + "?v=" + Date.now();
-
-      baseData.avatar = bustedUrl;
-
-      return db.ref("presence/"+userId).update(baseData).then(()=>{
-        avatarPreview.src = bustedUrl;
-        avatarInput.value = "";
-        alert("Settings saved");
-      });
-    })
-    .catch(err=>{
-      console.error(err);
-      showError("Image upload failed");
-    });
-}
-
-function updateProfile(name, avatar){
-  const data = {
-    username: name,
-    speciality: s_speciality.value,
-    description: s_desc.value
-  };
-  if(avatar) data.avatar = avatar;
-  db.ref("presence/"+userId).update(data);
-}
-
-
-/* ================= ROLE SWITCH ================= */
+/* ================= ROLE & ONLINE ================= */
 function switchRole(r){
   if(!userId) return;
 
@@ -350,8 +348,6 @@ function applyRole(r){
     }
   }
 }
-
-/* ================= ASTROLOGER ONLINE ================= */
 function toggleOnline(isOnline){
   if (!userId) return;
 
@@ -390,7 +386,15 @@ function toggleOnline(isOnline){
     document.getElementById("onlineStatusText").textContent = "Offline";
   }
 }
-/* ================= QUEUE LISTENER ================= */
+function toggleOnlineBtn(){
+  const isOnline = localStorage.getItem(ONLINE_KEY) === "1";
+  toggleOnline(!isOnline);
+}
+  function onOnlineToggleChange(el){
+  const isOnline = el.checked;
+  toggleOnline(isOnline);
+}
+/* ================= QUEUE ================= */
 function startQueueListener(){
   queueList.innerHTML="";
   queueRef = db.ref("requests/"+userId);
@@ -420,14 +424,6 @@ queueRef.on("child_removed", snap=>{
 
 }
 function stopQueueListener(){ if(queueRef) queueRef.off(); queueList.innerHTML=""; }
-function toggleOnlineBtn(){
-  const isOnline = localStorage.getItem(ONLINE_KEY) === "1";
-  toggleOnline(!isOnline);
-}
-  function onOnlineToggleChange(el){
-  const isOnline = el.checked;
-  toggleOnline(isOnline);
-}
 /* ================= CLIENT VIEW ================= */
 db.ref("presence").on("value", snap=>{
   astrologerList.innerHTML = "";
