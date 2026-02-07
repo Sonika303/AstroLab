@@ -197,17 +197,19 @@ setInterval(() => {
 
   if (savedRole) switchRole(savedRole);
 
-  db.ref("currentChat/" + userId).on("value", snap => {
-    if (!snap.exists()) {
-  if(chatId) forceCloseChat("silent");
-  return;
-}
+db.ref("currentChat/" + userId).on("value", snap => {
+  if (!snap.exists()) return; // 🚫 NEVER close chat from here
 
-    const cid = snap.val();
-    db.ref("chats/" + cid + "/meta").once("value").then(mSnap => {
-      if (mSnap.exists() && mSnap.val().active === true) openChat(cid);
-    });
+  const cid = snap.val();
+  if(!cid || chatId === cid) return;
+
+  db.ref("chats/" + cid + "/meta").once("value").then(mSnap => {
+    const meta = mSnap.val();
+    if(meta && meta.active === true){
+      openChat(cid);
+    }
   });
+});
 });
 /* ================= LOAD PROFILE ================= */
 function loadProfile(){
