@@ -548,7 +548,6 @@ async function acceptChat(queueKey, clientId){
 
     await db.ref("requests/"+userId+"/"+queueKey).remove();
 
-    openChat(chatId);
 
   } catch(err){
     console.error(err);
@@ -619,36 +618,36 @@ function openChat(id){
 
   const metaRef = db.ref("chats/"+id+"/meta");
 
-  // 🔥 REAL-TIME END DETECTION
 metaRef.on("value", snap=>{
   const meta = snap.val();
+  if(!meta) return;
 
-  if(!meta || meta.active !== true) return;
+  // 🔴 CHAT ENDED (ONLY PLACE THAT ENDS CHAT)
+  if(meta.active === false){
+    metaRef.off();
 
-if(meta.active === false){
-  metaRef.off();
+    if(role === "astrologer"){
+      db.ref("presence/"+userId).update({ busy:false });
+    }
 
-  // ✅ FREE ASTROLOGER
-  if(role === "astrologer"){
-    db.ref("presence/"+userId).update({ busy:false });
+    forceCloseChat(meta.endReason || "Chat ended");
+    return;
   }
 
-  forceCloseChat(meta.endReason || "Chat ended");
-  return;
-}
+  // 🟢 CHAT ACTIVE
+  partnerId =
+    meta.client === userId ? meta.astrologer : meta.client;
 
-  partnerId = meta.client === userId ? meta.astrologer : meta.client;
+  // ⏱ TIMER (SET ONCE)
+  if(!chatStartTime && meta.started){
+    chatStartTime = meta.started;
+    startChatTimer();
+  }
 
-  // 🔥 FIX TIMER RESET (USE ORIGINAL START TIME)
-if(meta.started){
-  chatStartTime = meta.started;
-  startChatTimer();
-
-  // ✅ START BILLING HERE (ONLY ONCE)
-  if(!billingActive && role === "astrologer"){
+  // 💳 BILLING — ASTROLOGER ONLY, ONCE
+  if(role === "astrologer" && !billingActive){
     startCreditTimer(meta.client, meta.astrologer);
   }
-}
 });
 
   if(chatRef) chatRef.off();
@@ -681,6 +680,7 @@ typingRef.on("value", snap => {
 }
 function forceCloseChat(message){
   if(chatClosing) return;
+  if(!chatId) return;
   chatClosing = true;
   stopChatTimer();
 
