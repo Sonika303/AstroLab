@@ -424,44 +424,6 @@ queueRef.on("child_removed", snap=>{
 
 }
 function stopQueueListener(){ if(queueRef) queueRef.off(); queueList.innerHTML=""; }
-/* ================= CLIENT VIEW ================= */
-db.ref("presence").on("value", snap=>{
-  astrologerList.innerHTML = "";
-  snap.forEach(child=>{
-    const data = child.val();
-    if(data.role === "astrologer" && data.online === true){
-      const uname = data.username || child.key;
-      const div = document.createElement("div");
-      div.className = "card";
-      div.innerHTML = `
-        <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
-        <strong>${uname}</strong>
-        <div class="stars" id="stars_${child.key}"></div>
-        <small>${data.speciality || "Astrology"}</small><br>
-        <small><strong>${data.ratePerMinute}</strong> credits / min</small>
-        <p>${data.description || ""}</p>
-        <div class="review-box">
-          <textarea id="reviewText_${child.key}" placeholder="Write a review (optional)"></textarea>
-          <button type="button" onclick="submitReview('${child.key}')">Submit Review</button>
-        </div>
-        <div class="review-panel">
-          <div class="review-stats" id="reviewStats_${child.key}"></div>
-          <div class="review-scroll" id="reviews_${child.key}"></div>
-        </div>
-        <button type="button" onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
-          ${(!data.online || data.busy) ? "disabled" : ""}>
-          ${data.busy ? "Busy" : "Request Chat"}
-        </button>
-      `;
-      astrologerList.appendChild(div);
-      renderStars(child.key);
-      loadReviews(child.key);
-      userCache[child.key] = data.username;
-    }
-  });
-});
-
-/* ================= SEND REQUEST ================= */
 function requestChat(astrologerId, rate){
   if(!userId){
     alert("You are not logged in.");
@@ -510,7 +472,6 @@ function requestChat(astrologerId, rate){
       alert("Failed to send chat request");
     });
 }
-/* ================= ACCEPT CHAT ================= */
 async function acceptChat(queueKey, clientId){
   if(chatId) return;
 
@@ -603,7 +564,7 @@ function buyCredits(amount){
 
   window.open(link + params, "_blank");
 }
-/* ================= OPEN CHAT ================= */
+/* ================= CHAT CORE ================= */
 function openChat(id){
   if(chatId && chatId === id && chatView.classList.contains("hidden") === false){
   return;
@@ -690,6 +651,20 @@ typingRef.on("value", snap => {
     "";
 });
 }
+function sendMessage(){
+  if(!chatId) return;
+  const text = msgInput.value.trim();
+  if(!text) return;
+
+  db.ref("chats/"+chatId+"/messages").push({
+    from:userId,
+    text,
+    time:Date.now()
+  });
+
+  db.ref(`chats/${chatId}/typing/${userId}`).remove();
+  msgInput.value="";
+}
 function forceCloseChat(message){
   if(chatClosing) return;
   if(!chatId) return;
@@ -754,71 +729,64 @@ setTimeout(()=>{ chatClosing = false; }, 1000);
   }
 }
 chatStartTime = null;
-/* ================= SEND MESSAGE ================= */
-function sendMessage(){
-  if(!chatId) return;
-  const text = msgInput.value.trim();
-  if(!text) return;
+/* ================= BILLING & TIMERS ================= */
+function startCreditTimer(clientId, astrologerId){
+  if(billingActive) return;
+  billingActive = true;
 
-  db.ref("chats/"+chatId+"/messages").push({
-    from:userId,
-    text,
-    time:Date.now()
-  });
+  creditInterval = setInterval(async ()=>{
+    if(!chatId) return stopBilling();
 
-  db.ref(`chats/${chatId}/typing/${userId}`).remove();
-  msgInput.value="";
-}
-/* ================= EXIT CHAT ================= */
-async function exitChat(){
-  if(!chatId) return;
-  if(!confirm("End chat for both users?")) return;
+    const rateSnap = await db.ref("presence/"+astrologerId+"/ratePerMinute").once("value");
+    const rate = rateSnap.val() || 1;
 
-  if(creditInterval){
-    stopBilling();
-  }
+    const clientCreditsRef = db.ref("presence/"+clientId+"/credits");
 
-  const endedChatId = chatId;
-
-  // ✅ minimum 1-credit guarantee
-  if(chatStartTime && role === "astrologer"){
-    const elapsed = Date.now() - chatStartTime;
-    if(elapsed < 60000){
-      await db.ref("chats/"+endedChatId+"/meta/earned")
-        .transaction(e => (e || 0) + 1);
-    }
-  }
-
-  // 🔥 authoritative end (single source of truth)
-  await db.ref("chats/"+endedChatId+"/meta").update({
-    active: false,
-    archived: true,
-    endReason: "Ended by " + role
-  });
-
-  // 🔥 cleanup assignments
-  await db.ref("currentChat/"+userId).remove();
-  if(partnerId) await db.ref("currentChat/"+partnerId).remove();
-
-  // 🔥 cleanup requests
-  await db.ref("requests/"+userId).remove();
-  if(partnerId) await db.ref("requests/"+partnerId).remove();
-
-  // 🔥 free astrologer
-  if(role === "astrologer"){
-    await db.ref("presence/"+userId).update({ busy:false });
-  }
-}
-function loadUserCache(){
-  db.ref("presence").on("value", snap=>{
-    snap.forEach(child=>{
-      const d = child.val();
-      if(d && d.username){
-        userCache[child.key] = d.username;
+    clientCreditsRef.transaction(c=>{
+      if((c || 0) < rate){
+        exitChat();
+        return c;
       }
+      return c - rate;
     });
-  });
+
+    db.ref("chats/"+chatId+"/meta/earned")
+      .transaction(e => (e || 0) + rate);
+
+  }, 60000);
 }
+
+function stopBilling(){
+  billingActive = false;
+  if(creditInterval){
+    clearInterval(creditInterval);
+    creditInterval = null;
+  }
+}
+function startChatTimer(){
+  stopChatTimer();
+
+  chatTimerInterval = setInterval(()=>{
+    if(!chatStartTime) return;
+
+    const s = Math.floor((Date.now() - chatStartTime) / 1000);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+
+    const el = document.getElementById("chatTimer");
+    if(el){
+      el.textContent = `${m}:${sec.toString().padStart(2,"0")}`;
+    }
+  }, 1000);
+}
+
+function stopChatTimer(){
+  if(chatTimerInterval){
+    clearInterval(chatTimerInterval);
+    chatTimerInterval = null;
+  }
+}
+
 function watchCredits(){
   if(!userId) return;
 
@@ -862,59 +830,41 @@ function watchTodayEarnings(){
     if(el) el.textContent = total;
   });
 }
-function startChatTimer(){
-  stopChatTimer();
+/* ================= REVIEWS ================= */
 
-  chatTimerInterval = setInterval(()=>{
-    if(!chatStartTime) return;
-
-    const s = Math.floor((Date.now() - chatStartTime) / 1000);
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-
-    const el = document.getElementById("chatTimer");
-    if(el){
-      el.textContent = `${m}:${sec.toString().padStart(2,"0")}`;
+/* ================= CLIENT VIEW ================= */
+db.ref("presence").on("value", snap=>{
+  astrologerList.innerHTML = "";
+  snap.forEach(child=>{
+    const data = child.val();
+    if(data.role === "astrologer" && data.online === true){
+      const uname = data.username || child.key;
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
+        <strong>${uname}</strong>
+        <div class="stars" id="stars_${child.key}"></div>
+        <small>${data.speciality || "Astrology"}</small><br>
+        <small><strong>${data.ratePerMinute}</strong> credits / min</small>
+        <p>${data.description || ""}</p>
+        <div class="review-box">
+          <textarea id="reviewText_${child.key}" placeholder="Write a review (optional)"></textarea>
+          <button type="button" onclick="submitReview('${child.key}')">Submit Review</button>
+        </div>
+        <div class="review-panel">
+          <div class="review-stats" id="reviewStats_${child.key}"></div>
+          <div class="review-scroll" id="reviews_${child.key}"></div>
+        </div>
+        <button type="button" onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
+          ${(!data.online || data.busy) ? "disabled" : ""}>
+          ${data.busy ? "Busy" : "Request Chat"}
+        </button>
+      `;
+      astrologerList.appendChild(div);
+      renderStars(child.key);
+      loadReviews(child.key);
+      userCache[child.key] = data.username;
     }
-  }, 1000);
-}
-
-function stopChatTimer(){
-  if(chatTimerInterval){
-    clearInterval(chatTimerInterval);
-    chatTimerInterval = null;
-  }
-}
-function startCreditTimer(clientId, astrologerId){
-  if(billingActive) return;
-  billingActive = true;
-
-  creditInterval = setInterval(async ()=>{
-    if(!chatId) return stopBilling();
-
-    const rateSnap = await db.ref("presence/"+astrologerId+"/ratePerMinute").once("value");
-    const rate = rateSnap.val() || 1;
-
-    const clientCreditsRef = db.ref("presence/"+clientId+"/credits");
-
-    clientCreditsRef.transaction(c=>{
-      if((c || 0) < rate){
-        exitChat();
-        return c;
-      }
-      return c - rate;
-    });
-
-    db.ref("chats/"+chatId+"/meta/earned")
-      .transaction(e => (e || 0) + rate);
-
-  }, 60000);
-}
-
-function stopBilling(){
-  billingActive = false;
-  if(creditInterval){
-    clearInterval(creditInterval);
-    creditInterval = null;
-  }
-}
+  });
+});
