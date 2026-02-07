@@ -198,13 +198,13 @@ setInterval(() => {
 
   db.ref("currentChat/" + userId).on("value", snap => {
     if (!snap.exists()) {
-      forceCloseChat("silent");
-      return;
-    }
+  if(chatId) forceCloseChat("silent");
+  return;
+}
 
     const cid = snap.val();
     db.ref("chats/" + cid + "/meta").once("value").then(mSnap => {
-      if (mSnap.exists()) openChat(cid);
+      if (mSnap.exists() && mSnap.val().active === true) openChat(cid);
     });
   });
 });
@@ -604,7 +604,9 @@ function buyCredits(amount){
 }
 /* ================= OPEN CHAT ================= */
 function openChat(id){
-  chatStartTime = Date.now();
+  if(chatId && chatId === id && chatView.classList.contains("hidden") === false){
+  return;
+}
   chatId = id;
 
   clientView.classList.add("hidden");
@@ -621,6 +623,12 @@ if(!meta) return; // 🔥 ignore transient nulls
 
 if(meta.active === false){
   metaRef.off();
+
+  // ✅ FREE ASTROLOGER
+  if(role === "astrologer"){
+    db.ref("presence/"+userId).update({ busy:false });
+  }
+
   forceCloseChat(meta.endReason || "Chat ended");
   return;
 }
@@ -774,7 +782,10 @@ if(partnerId) db.ref("requests/"+partnerId).remove();
     db.ref("presence/"+partnerId).update({ busy:false });
   }
 db.ref(`chats/${chatId}/typing`).remove();
+
+forceCloseChat("Chat ended by user");
 }
+
 async function startCreditTimer(clientId, astrologerId){
   if(billingActive) return; // 🔒 HARD GUARD
   billingActive = true;
