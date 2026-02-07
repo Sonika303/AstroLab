@@ -1,3 +1,6 @@
+/* =========================================================
+   🔥 FIREBASE CORE
+   ========================================================= */
 /* ================= FIREBASE CONFIG ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyALzPqt1EdWG9cWeFf2gZP8Z470D0puPds",
@@ -14,6 +17,9 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 const db = firebase.database();
 const storage = firebase.storage();
+/* =========================================================
+   🧠 GLOBAL RUNTIME STATE
+   ========================================================= */
 /* ================= STATE ================= */
 let userId = null;
 let billingActive = false;
@@ -33,6 +39,9 @@ let userCache = {}; // cache usernames
 let creditInterval = null;
 let chatStartTime = null;
 let chatTimerInterval = null;
+/* =========================================================
+   🧩 DOM ELEMENT REFERENCES
+   ========================================================= */
 /* ================= ELEMENTS ================= */
 const clientView = document.getElementById("clientView");
 const astrologerView = document.getElementById("astrologerView");
@@ -57,12 +66,17 @@ const avatarPreview = document.getElementById("avatarPreview");
 const s_name = document.getElementById("s_name");
 const s_speciality = document.getElementById("s_speciality");
 const s_desc = document.getElementById("s_desc");
+/* =========================================================
+   🎨 UI HELPERS & PANELS
+   ========================================================= */
 /* ================= UI HELPERS ================= */
+/* ---------- Settings Panel ---------- */
 function toggleSettings(){
   const panel = document.getElementById("settingsPanel");
   if(!panel) return;
   panel.classList.toggle("open");
 }
+/* ---------- Auth UI ---------- */
 function showNotSignedIn(){
   document.body.innerHTML = `
     <div style="
@@ -93,6 +107,7 @@ function showNotSignedIn(){
     </div>
   `;
 }
+/* ---------- Profile UI ---------- */
 function loadProfile(){
   if(!userId) return;
 
@@ -165,7 +180,11 @@ function saveSettings(){
       showError("Image upload failed");
     });
 }
+/* =========================================================
+   🟢 USER PRESENCE & HEARTBEAT
+   ========================================================= */
 /* ================= PRESENCE ================= */
+/* ---------- Presence Bootstrap ---------- */
 function ensurePresence(user){
   if(!user || !user.uid) return;
 
@@ -189,6 +208,7 @@ function ensurePresence(user){
     });
   });
 }
+/* ---------- Presence Healing ---------- */
 function healPresence(uid){
   if(!uid) return;
 
@@ -214,6 +234,7 @@ function healPresence(uid){
     });
   });
 }
+/* ---------- Connection Recovery ---------- */
 connectedRef.on("value", snap => {
   if (!userId) return;
 
@@ -229,6 +250,9 @@ connectedRef.on("value", snap => {
     }
   }
 });
+/* =========================================================
+   🔐 AUTH SESSION & RESTORE
+   ========================================================= */
 /* ================= AUTH STATE ================= */
 auth.onAuthStateChanged(user => {
   if (!user) {
@@ -287,6 +311,9 @@ db.ref("currentChat/" + userId).on("value", snap => {
   });
 });
 });
+/* =========================================================
+   🚪 LOGOUT & FULL CLEANUP
+   ========================================================= */
 /* ================= LOGOUT ================= */
 function logout(){
   if(!userId) return;
@@ -315,7 +342,11 @@ function logout(){
     window.location.href = "auth.html";
   });
 }
+/* =========================================================
+   🎭 ROLE & ONLINE STATE
+   ========================================================= */
 /* ================= ROLE & ONLINE ================= */
+/* ---------- Role Switching ---------- */
 function switchRole(r){
   if(!userId) return;
 
@@ -348,6 +379,7 @@ function applyRole(r){
     }
   }
 }
+/* ---------- Online Toggle ---------- */
 function toggleOnline(isOnline){
   if (!userId) return;
 
@@ -394,6 +426,9 @@ function toggleOnlineBtn(){
   const isOnline = el.checked;
   toggleOnline(isOnline);
 }
+/* =========================================================
+   📥 CHAT QUEUE SYSTEM
+   ========================================================= */
 /* ================= QUEUE ================= */
 function startQueueListener(){
   queueList.innerHTML="";
@@ -424,6 +459,7 @@ queueRef.on("child_removed", snap=>{
 
 }
 function stopQueueListener(){ if(queueRef) queueRef.off(); queueList.innerHTML=""; }
+/* ---------- Client → Astrologer Requests ---------- */
 function requestChat(astrologerId, rate){
   if(!userId){
     alert("You are not logged in.");
@@ -472,6 +508,7 @@ function requestChat(astrologerId, rate){
       alert("Failed to send chat request");
     });
 }
+/* ---------- Astrologer Accept / Deny ---------- */
 async function acceptChat(queueKey, clientId){
   if(chatId) return;
 
@@ -564,7 +601,31 @@ function buyCredits(amount){
 
   window.open(link + params, "_blank");
 }
+function denyChat(queueKey){
+  if(!userId) return;
+  db.ref("requests/" + userId + "/" + queueKey).remove();
+}
+/* ---------- Queue Cleanup ---------- */
+function clearMyRequests(){
+  if(!userId) return;
+
+  // remove incoming requests (astrologer)
+  db.ref("requests/" + userId).remove();
+
+  // remove outgoing requests (client)
+  db.ref("requests").once("value").then(snap=>{
+    snap.forEach(astro=>{
+      if(astro.child(userId).exists()){
+        db.ref("requests/" + astro.key + "/" + userId).remove();
+      }
+    });
+  });
+}
+/* =========================================================
+   💬 CHAT CORE ENGINE
+   ========================================================= */
 /* ================= CHAT CORE ================= */
+/* ---------- Open & Sync Chat ---------- */
 function openChat(id){
   if(chatId && chatId === id && chatView.classList.contains("hidden") === false){
   return;
@@ -651,6 +712,7 @@ typingRef.on("value", snap => {
     "";
 });
 }
+/* ---------- Messaging ---------- */
 function sendMessage(){
   if(!chatId) return;
   const text = msgInput.value.trim();
@@ -665,6 +727,7 @@ function sendMessage(){
   db.ref(`chats/${chatId}/typing/${userId}`).remove();
   msgInput.value="";
 }
+/* ---------- FORCE CLOSE CHAT (CRITICAL) ---------- */
 function forceCloseChat(message){
   if(chatClosing) return;
   if(!chatId) return;
@@ -729,7 +792,11 @@ setTimeout(()=>{ chatClosing = false; }, 1000);
   }
 }
 chatStartTime = null;
+/* =========================================================
+   💰 BILLING & TIMERS
+   ========================================================= */
 /* ================= BILLING & TIMERS ================= */
+/* ---------- Credit Deduction Engine ---------- */
 function startCreditTimer(clientId, astrologerId){
   if(billingActive) return;
   billingActive = true;
@@ -763,6 +830,7 @@ function stopBilling(){
     creditInterval = null;
   }
 }
+/* ---------- Chat Timer UI ---------- */
 function startChatTimer(){
   stopChatTimer();
 
@@ -830,8 +898,75 @@ function watchTodayEarnings(){
     if(el) el.textContent = total;
   });
 }
+/* =========================================================
+   ⭐ REVIEWS & RATINGS
+   ========================================================= */
 /* ================= REVIEWS ================= */
+function renderStars(astrologerId){
+  const el = document.getElementById("stars_" + astrologerId);
+  if(!el) return;
 
+  db.ref("reviews/" + astrologerId).once("value").then(snap=>{
+    let total = 0, count = 0;
+    snap.forEach(r=>{
+      total += r.val().rating || 0;
+      count++;
+    });
+
+    const avg = count ? (total / count) : 0;
+    el.innerHTML = "★".repeat(Math.round(avg)) + "☆".repeat(5 - Math.round(avg));
+  });
+}
+function loadReviews(astrologerId){
+  const box = document.getElementById("reviews_" + astrologerId);
+  const stats = document.getElementById("reviewStats_" + astrologerId);
+  if(!box || !stats) return;
+
+  box.innerHTML = "";
+
+  db.ref("reviews/" + astrologerId).limitToLast(10).on("value", snap=>{
+    box.innerHTML = "";
+    let total = 0, count = 0;
+
+    snap.forEach(r=>{
+      const d = r.val();
+      total += d.rating || 0;
+      count++;
+
+      const div = document.createElement("div");
+      div.className = "review";
+      div.textContent = `${"★".repeat(d.rating || 0)} - ${d.text || ""}`;
+      box.appendChild(div);
+    });
+
+    stats.textContent = count
+      ? `⭐ ${(total/count).toFixed(1)} (${count} reviews)`
+      : "No reviews yet";
+  });
+}
+function submitReview(astrologerId){
+  if(!userId) return alert("Login required");
+
+  const textEl = document.getElementById("reviewText_" + astrologerId);
+  if(!textEl) return;
+
+  const text = textEl.value.trim();
+  if(!text) return alert("Write something");
+
+  const rating = 5; // fixed 5-star for now (polished, simple)
+
+  db.ref("reviews/" + astrologerId).push({
+    from: userId,
+    rating,
+    text,
+    time: Date.now()
+  });
+
+  textEl.value = "";
+}
+/* =========================================================
+   🧑 CLIENT VIEW RENDERING
+   ========================================================= */
 /* ================= CLIENT VIEW ================= */
 db.ref("presence").on("value", snap=>{
   astrologerList.innerHTML = "";
