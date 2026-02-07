@@ -39,6 +39,7 @@ connectedRef.on("value", snap => {
   }
 });
 let chatId = null;
+let chatClosing = false;
 let partnerId = null;
 let typingRef = null;
 let typingTimeout = null;
@@ -115,7 +116,7 @@ function ensurePresence(user){
       username: user.displayName || "user_" + user.uid.slice(0,6),
       avatar: user.photoURL || "",
       role: "client",
-      credits: 20,
+      credits: 0,
       ratePerMinute: 1,
       speciality: "",
       description: "",
@@ -139,7 +140,7 @@ function healPresence(uid){
     ref.update({
       username: data.username || "user_" + uid.slice(0,6),
       avatar: data.avatar || "",
-      credits: data.credits ?? 20,
+      credits: data.credits ?? 0,
       ratePerMinute: data.ratePerMinute ?? 1,
       speciality: data.speciality || "",
       description: data.description || "",
@@ -552,12 +553,14 @@ async function acceptChat(queueKey, clientId){
   } catch(err){
     console.error(err);
 
-    // 🔥 UNLOCK IF ANYTHING FAILS
     await astroRef.update({ busy:false });
 
     chatId = null;
     partnerId = null;
     chatStartTime = null;
+if(role === "astrologer" && userId){
+  db.ref("presence/"+userId).update({ busy:false });
+}
 
     alert("Failed to start chat. Try again.");
   }
@@ -619,7 +622,8 @@ function openChat(id){
   // 🔥 REAL-TIME END DETECTION
 metaRef.on("value", snap=>{
   const meta = snap.val();
-if(!meta) return; // 🔥 ignore transient nulls
+
+  if(!meta || meta.active !== true) return;
 
 if(meta.active === false){
   metaRef.off();
@@ -676,6 +680,8 @@ typingRef.on("value", snap => {
 });
 }
 function forceCloseChat(message){
+  if(chatClosing) return;
+  chatClosing = true;
   stopChatTimer();
 
   // ✅ SAVE CHAT ID ONCE
@@ -713,7 +719,7 @@ function forceCloseChat(message){
   if(box) box.textContent = "";
 
   chatView.classList.add("hidden");
-
+setTimeout(()=>{ chatClosing = false; }, 1000);
   // ✅ UI restore
   if(role === "astrologer"){
     astrologerView.classList.remove("hidden");
