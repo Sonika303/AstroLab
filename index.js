@@ -36,6 +36,17 @@ let typingTimeout = null;
 let chatRef = null;
 let queueRef = null;
 let userCache = {}; // cache usernames
+db.ref("presence").on("child_added", snap => {
+  const d = snap.val();
+  if(!d) return;
+  userCache[snap.key] = d.username || "User";
+});
+
+db.ref("presence").on("child_changed", snap => {
+  const d = snap.val();
+  if(!d) return;
+  userCache[snap.key] = d.username || "User";
+});
 let creditInterval = null;
 let chatStartTime = null;
 let chatTimerInterval = null;
@@ -272,12 +283,9 @@ setInterval(() => {
   astrologerView.classList.add("hidden");
   chatView.classList.add("hidden");
 
- loadProfile();
-
-db.ref("presence/"+user.uid).once("value").then(()=>{
-  watchCredits();
-  watchAstroRate();
-});
+setTimeout(loadProfile, 300);
+watchCredits();
+watchAstroRate();
 
   // 🔥 RESTORE ONLINE STATE AFTER REFRESH
   const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
@@ -436,24 +444,29 @@ function startQueueListener(){
   queueList.innerHTML="";
   queueRef = db.ref("requests/"+userId);
   queueRef.off();
- queueRef.on("child_added", snap=>{
+queueRef.on("child_added", snap=>{
   const data = snap.val();
-  const clientName = userCache[data.client] || data.client;
 
   const div = document.createElement("div");
   div.className = "card";
   div.id = "req_" + snap.key;
-   
-div.innerHTML = `
-  Request from <strong>${clientName}</strong><br>
-<button type="button" onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>
-  <button type="button" style="background:#dc2626"
-    onclick="denyChat('${snap.key}')">Deny</button>
-`;
+
+  div.innerHTML = `
+    Request from <strong class="clientName">Loading…</strong><br>
+    <button type="button" onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>
+    <button type="button" style="background:#dc2626"
+      onclick="denyChat('${snap.key}')">Deny</button>
+  `;
 
   queueList.appendChild(div);
-});
 
+  db.ref("presence/" + data.client + "/username")
+    .once("value")
+    .then(s => {
+      div.querySelector(".clientName").textContent =
+        s.val() || "Client";
+    });
+});
 queueRef.on("child_removed", snap=>{
   const el = document.getElementById("req_" + snap.key);
   if(el) el.remove();
@@ -709,7 +722,7 @@ typingRef.on("value", snap => {
   const selfTyping = usersTyping.includes(userId);
 
   box.textContent =
-    otherTyping ? "User is typing…" :
+    otherTyping ? `${userCache[partnerId] || "User"} is typing…` :
     selfTyping ? "You are typing…" :
     "";
 });
@@ -812,9 +825,12 @@ function startCreditTimer(clientId, astrologerId){
 
     clientCreditsRef.transaction(c=>{
       if((c || 0) < rate){
-        exitChat();
-        return c;
-      }
+  db.ref("chats/"+chatId+"/meta").update({
+    active: false,
+    endReason: "Credits exhausted"
+  });
+  return c;
+}
       return c - rate;
     });
 
@@ -907,15 +923,17 @@ function renderStars(astrologerId){
   const el = document.getElementById("stars_" + astrologerId);
   if(!el) return;
 
-  db.ref("reviews/" + astrologerId).once("value").then(snap=>{
+  const ref = db.ref("reviews/" + astrologerId);
+  ref.off();
+  ref.on("value", snap=>{
     let total = 0, count = 0;
     snap.forEach(r=>{
       total += r.val().rating || 0;
       count++;
     });
 
-    const avg = count ? (total / count) : 0;
-    el.innerHTML = "★".repeat(Math.round(avg)) + "☆".repeat(5 - Math.round(avg));
+    const avg = count ? Math.round(total / count) : 0;
+    el.innerHTML = "★".repeat(avg) + "☆".repeat(5 - avg);
   });
 }
 function loadReviews(astrologerId){
@@ -923,9 +941,10 @@ function loadReviews(astrologerId){
   const stats = document.getElementById("reviewStats_" + astrologerId);
   if(!box || !stats) return;
 
-  box.innerHTML = "";
+  const ref = db.ref("reviews/" + astrologerId).limitToLast(10);
+  ref.off();
 
-  db.ref("reviews/" + astrologerId).limitToLast(10).on("value", snap=>{
+  ref.on("value", snap=>{
     box.innerHTML = "";
     let total = 0, count = 0;
 
@@ -983,7 +1002,7 @@ db.ref("presence").on("value", snap=>{
         <div class="stars" id="stars_${child.key}"></div>
         <small>${data.speciality || "Astrology"}</small><br>
         <small><strong>${data.ratePerMinute}</strong> credits / min</small>
-        <p>${data.description || ""}</p>
+        <p>${data.description || "No description provided."}</p>
         <div class="review-box">
           <textarea id="reviewText_${child.key}" placeholder="Write a review (optional)"></textarea>
           <button type="button" onclick="submitReview('${child.key}')">Submit Review</button>
@@ -1000,7 +1019,6 @@ db.ref("presence").on("value", snap=>{
       astrologerList.appendChild(div);
       renderStars(child.key);
       loadReviews(child.key);
-      userCache[child.key] = data.username;
     }
   });
 });
