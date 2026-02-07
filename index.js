@@ -272,10 +272,12 @@ setInterval(() => {
   astrologerView.classList.add("hidden");
   chatView.classList.add("hidden");
 
-  loadProfile();
-  loadUserCache();
+ loadProfile();
+
+db.ref("presence/"+user.uid).once("value").then(()=>{
   watchCredits();
   watchAstroRate();
+});
 
   // 🔥 RESTORE ONLINE STATE AFTER REFRESH
   const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
