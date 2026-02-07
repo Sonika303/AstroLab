@@ -63,8 +63,9 @@ body {
   --shadow-md: 0 20px 40px rgba(15,23,42,.12);
   --shadow-xl: 0 40px 80px rgba(15,23,42,.18);
 }
-  
+
 * {
+  -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
   transition:
     background-color .25s ease,
@@ -78,6 +79,9 @@ body {
 body {
   margin: 0;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
   background:
     radial-gradient(1200px 600px at 10% -10%, #e0e7ff, transparent),
     radial-gradient(800px 400px at 90% 10%, #dcfce7, transparent),
@@ -86,9 +90,21 @@ body {
   display: flex;
   color: var(--text-main);
 }
+  body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(600px 300px at 50% 0%, rgba(99,102,241,.08), transparent),
+    radial-gradient(400px 200px at 80% 20%, rgba(34,197,94,.06), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
 
 /* ---------- SIDEBAR ---------- */
 .sidebar {
+    position: relative;
+  z-index: 2;
   width: 260px;
   background: linear-gradient(180deg, #ffffff, #f8fafc);
   border-right: 1px solid var(--border);
@@ -120,17 +136,18 @@ body {
 }
   
 .sidebar button:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.3),
+    0 18px 40px rgba(99,102,241,.35);
 }
-
-
 .sidebar button:active {
   transform: scale(.97);
 }
 
 /* ---------- SETTINGS PANEL ---------- */
 .settings {
+  box-shadow: -30px 0 80px rgba(15,23,42,.25);
   position: fixed;
   backdrop-filter: blur(16px);
   right: -320px;
@@ -168,6 +185,8 @@ body {
 
 /* ---------- MAIN ---------- */
 .main {
+    position: relative;
+  z-index: 2;
   flex: 1;
   padding: 24px;
   overflow-y: auto;
@@ -198,6 +217,7 @@ body {
   backdrop-filter: blur(12px);
   border-radius: var(--radius-lg);
   padding: 24px;
+  overflow: hidden;
   margin-bottom: 20px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
@@ -223,7 +243,16 @@ body {
   transition: opacity .4s;
   pointer-events: none; /* ✅ THIS FIXES CLICK ISSUE */
 }
-
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  opacity: .85;
+}
 .card:hover::after {
   opacity: 1;
 }
@@ -312,6 +341,7 @@ button i {
 }
 
 .message {
+  position: relative;
   padding: 14px 18px;
   border-radius: 20px;
   background: #f1f5f9;
@@ -333,6 +363,8 @@ button i {
 
 
 .message.self {
+  box-shadow:
+  0 6px 20px rgba(99,102,241,.35);
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: white;
   margin-left: auto;
@@ -508,7 +540,18 @@ button i {
     padding-bottom: 90px;
   }
 }
+button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,.35), transparent 60%);
+  opacity: 0;
+  transition: opacity .3s;
+}
 
+button:hover::after {
+  opacity: 1;
+}
 </style>
 </head>
 <body>
