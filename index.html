@@ -18,22 +18,14 @@ html {
   font-size: clamp(14px, 1.05vw, 16px);
 }
 
-body {
-  zoom: 1;
-}
-
 /* 🔥 AUTO SCALE EVERYTHING */
 @media (max-width: 1200px) {
-  body { zoom: .95; }
 }
 @media (max-width: 992px) {
-  body { zoom: .9; }
 }
 @media (max-width: 768px) {
-  body { zoom: .85; }
 }
 @media (max-width: 480px) {
-  body { zoom: .8; }
 }
 :root {
   --bg-main: #f8fafc;
@@ -136,7 +128,6 @@ body {
 }
   
 .sidebar button:hover {
-  transform: translateY(-2px) scale(1.02);
   box-shadow:
     0 0 0 1px rgba(255,255,255,.3),
     0 18px 40px rgba(99,102,241,.35);
@@ -147,6 +138,7 @@ body {
 
 /* ---------- SETTINGS PANEL ---------- */
 .settings {
+  pointer-events: none;
   box-shadow: -30px 0 80px rgba(15,23,42,.25);
   position: fixed;
   backdrop-filter: blur(16px);
@@ -164,11 +156,13 @@ body {
 }
 
 .settings.open {
+  pointer-events: auto;
   right: 0;
   opacity: 1;
 }
   
 .settings.open {
+    pointer-events: auto;
   animation: panelIn .4s cubic-bezier(.4,0,.2,1);
 }
 
@@ -225,7 +219,6 @@ body {
 }
 
 .card:hover {
-  transform: translateY(-6px) scale(1.01);
   box-shadow: var(--shadow-xl);
 }
 .card::after {
@@ -244,6 +237,7 @@ body {
   pointer-events: none; /* ✅ THIS FIXES CLICK ISSUE */
 }
 .card::before {
+  pointer-events: none;
   content: "";
   position: absolute;
   top: 0;
@@ -298,14 +292,14 @@ button {
   cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
-  
+  button {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
 button:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-xl);
-}
-
-button:active {
-  transform: scale(.96);
 }
   
 button:active {
@@ -539,18 +533,6 @@ button i {
   .main {
     padding-bottom: 90px;
   }
-}
-button::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center, rgba(255,255,255,.35), transparent 60%);
-  opacity: 0;
-  transition: opacity .3s;
-}
-
-button:hover::after {
-  opacity: 1;
 }
 </style>
 </head>
