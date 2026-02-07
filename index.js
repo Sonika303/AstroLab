@@ -535,16 +535,20 @@ async function acceptChat(queueKey, clientId){
     chatStartTime = Date.now(); // ✅ FIXED
     partnerId = clientId;
 
-    await db.ref("chats/"+chatId+"/meta").set({
-      astrologer: userId,
-      client: clientId,
-      started: chatStartTime,
-      active: true,
-      earned: 0
-    });
+await db.ref("chats/"+chatId+"/meta").set({
+  astrologer: userId,
+  client: clientId,
+  started: chatStartTime,
+  active: true,
+  earned: 0
+});
+
+await db.ref("presence/"+userId).update({ busy:true });
+await db.ref("presence/"+clientId).update({ busy:true });
 
 await db.ref("currentChat/" + userId).set(chatId);
 await db.ref("currentChat/" + clientId).set(chatId);
+
 await db.ref("requests/"+userId+"/"+queueKey).remove();
 
 
@@ -643,10 +647,14 @@ metaRef.on("value", snap=>{
     startChatTimer();
   }
 
-  // 💳 BILLING — ASTROLOGER ONLY, ONCE
-  if(role === "astrologer" && !billingActive){
-    startCreditTimer(meta.client, meta.astrologer);
-  }
+if(
+  role === "astrologer" &&
+  !billingActive &&
+  meta.active === true &&
+  chatStartTime
+){
+  startCreditTimer(meta.client, meta.astrologer);
+}
 });
 
   if(chatRef) chatRef.off();
