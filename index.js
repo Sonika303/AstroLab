@@ -275,6 +275,19 @@ userId = user.uid;
 ensurePresence(user);
 healPresence(user.uid);
 
+db.ref("requestStatus/" + userId).on("child_added", snap=>{
+  const data = snap.val();
+  const astrologerId = snap.key;
+
+  if(data?.status === "denied"){
+    alert("Astrologer denied your request.");
+
+    // 🔥 cleanup so client can re-request
+    db.ref("requestStatus/" + userId + "/" + astrologerId).remove();
+    db.ref("requests/" + astrologerId + "/" + userId).remove();
+  }
+});
+
 setInterval(() => {
   healPresence(user.uid);
 }, 60000);
@@ -504,19 +517,30 @@ function requestChat(astrologerId, rate){
 
       const reqRef = db.ref("requests/" + astrologerId + "/" + userId);
 
-      return reqRef.once("value").then(snap=>{
-        if(snap.exists()){
-          alert("You already requested this astrologer");
-          return;
-        }
+const statusRef = db.ref("requestStatus/" + userId + "/" + astrologerId);
 
-        return reqRef.set({
-          client: userId,
-          time: Date.now()
-        }).then(()=>{
-          alert("Chat request sent");
-        });
-      });
+return Promise.all([
+  reqRef.once("value"),
+  statusRef.once("value")
+]).then(([reqSnap, statusSnap])=>{
+
+  if(reqSnap.exists()){
+    alert("Request already pending");
+    return;
+  }
+
+  if(statusSnap.exists()){
+    // 🔥 astrologer denied earlier → clear and allow retry
+    statusRef.remove();
+  }
+
+  return reqRef.set({
+    client: userId,
+    time: Date.now()
+  }).then(()=>{
+    alert("Chat request sent");
+  });
+});
     })
     .catch(err => {
       console.error(err);
@@ -618,6 +642,16 @@ function buyCredits(amount){
 }
 function denyChat(queueKey){
   if(!userId) return;
+
+  const clientId = queueKey;
+
+  // 1) notify client that request was denied
+  db.ref("requestStatus/" + clientId + "/" + userId).set({
+    status: "denied",
+    time: Date.now()
+  });
+
+  // 2) remove request from astrologer queue
   db.ref("requests/" + userId + "/" + queueKey).remove();
 }
 /* ---------- Queue Cleanup ---------- */
