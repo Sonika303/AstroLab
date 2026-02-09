@@ -779,6 +779,34 @@ function sendMessage(){
   db.ref(`chats/${chatId}/typing/${userId}`).remove();
   msgInput.value="";
 }
+function endChat(){
+  if(!chatId) return;
+
+  const reason =
+    role === "astrologer"
+      ? "Chat ended by astrologer"
+      : "Chat ended by client";
+
+  db.ref("chats/"+chatId+"/meta").update({
+    active: false,
+    endReason: reason,
+    endedAt: Date.now()
+  });
+}
+function exitChat(){
+  if(!chatId) return;
+
+  const reason =
+    role === "astrologer"
+      ? "Chat ended by astrologer"
+      : "Chat ended by client";
+
+  db.ref("chats/"+chatId+"/meta").update({
+    active: false,
+    endReason: reason,
+    endedAt: Date.now()
+  });
+}
 /* ---------- FORCE CLOSE CHAT (CRITICAL) ---------- */
 function forceCloseChat(message){
   if(chatClosing) return;
