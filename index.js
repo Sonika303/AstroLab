@@ -583,6 +583,9 @@ await db.ref("currentChat/" + userId).set(chatId);
 await db.ref("currentChat/" + clientId).set(chatId);
 
 await db.ref("requests/"+userId+"/"+queueKey).remove();
+     
+openChat(chatId);
+
 
 
   } catch(err){
