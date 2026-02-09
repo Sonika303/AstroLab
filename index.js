@@ -902,6 +902,9 @@ function startCreditTimer(clientId, astrologerId){
     db.ref("chats/"+chatId+"/meta/earned")
       .transaction(e => (e || 0) + rate);
 
+db.ref("presence/"+astrologerId+"/credits")
+  .transaction(a => (a || 0) + rate);
+
   }, 60000);
 }
 
