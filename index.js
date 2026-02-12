@@ -126,9 +126,9 @@ function loadProfile(){
     const d = snap.val();
     if(!d) return;
 
-    s_name.value = d.username || "";
-    s_speciality.value = d.speciality || "";
-    s_desc.value = d.experience || "";
+s_name.value = d.username || "";
+s_speciality.value = d.speciality || "";
+s_experience.value = d.experience || ""; 
 
     // 🔥 force reload avatar
     avatarPreview.src = d.avatar 
@@ -137,11 +137,11 @@ function loadProfile(){
   });
 }
 function updateProfile(name, avatar){
-  const data = {
-    username: name,
-    speciality: s_speciality.value,
-    experience: s_desc.value
-  };
+const data = {
+  username: name,
+  speciality: s_speciality.value,
+  experience: s_experience.value
+};
   if(avatar) data.avatar = avatar;
   db.ref("presence/"+userId).update(data);
 }
@@ -155,14 +155,12 @@ function saveSettings(){
   const name = s_name.value.trim().toLowerCase();
   if(!name) return showError("Name required");
 
-  // base profile data
   const baseData = {
-    username: name,
-    speciality: s_speciality.value,
-    experience: s_desc.value
-  };
+  username: name,
+  speciality: s_speciality.value,
+  experience: s_experience.value // use experience input instead
+};
 
-  // NO IMAGE → just save text
   if(!file){
     db.ref("presence/"+userId).update(baseData).then(()=>{
       alert("Settings saved");
@@ -170,7 +168,6 @@ function saveSettings(){
     return;
   }
 
-  // IMAGE UPLOAD
   const ref = storage.ref(`avatars/${userId}.jpg`);
   ref.put(file)
     .then(()=>ref.getDownloadURL())
@@ -211,7 +208,7 @@ function ensurePresence(user){
       credits: 0,
       ratePerMinute: 1,
       speciality: "",
-      description: "",
+      experience: ""
       online: false,
       busy: false,
       lastSeen: Date.now()
