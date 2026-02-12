@@ -128,7 +128,7 @@ function loadProfile(){
 
     s_name.value = d.username || "";
     s_speciality.value = d.speciality || "";
-    s_desc.value = d.description || "";
+    s_desc.value = d.experience || "";
 
     // 🔥 force reload avatar
     avatarPreview.src = d.avatar 
@@ -140,7 +140,7 @@ function updateProfile(name, avatar){
   const data = {
     username: name,
     speciality: s_speciality.value,
-    description: s_desc.value
+    experience: s_desc.value
   };
   if(avatar) data.avatar = avatar;
   db.ref("presence/"+userId).update(data);
@@ -159,7 +159,7 @@ function saveSettings(){
   const baseData = {
     username: name,
     speciality: s_speciality.value,
-    description: s_desc.value
+    experience: s_desc.value
   };
 
   // NO IMAGE → just save text
@@ -906,11 +906,10 @@ async function startCreditTimer(clientId, astrologerId){
         return;
       }
 
-      // ✅ Add earnings to astrologer
-      await db.ref(`presence/${astrologerId}/credits`).transaction(a => (a || 0) + rate);
-
-      // ✅ Add to chat meta
-      await db.ref(`chats/${chatId}/meta/earned`).transaction(e => (e || 0) + rate);
+await db.ref(`presence/${astrologerId}/credits`).transaction(a => (a || 0) + rate);
+await db.ref(`chats/${chatId}/meta/earned`).transaction(e => (e || 0) + rate);
+await db.ref(`presence/${astrologerId}/totalChatTime`).transaction(t => (t || 0) + 1);
+await db.ref(`presence/${clientId}/totalChatTime`).transaction(t => (t || 0) + 1);
 
     } catch(err){
       console.error("Credit timer error:", err);
@@ -1079,7 +1078,8 @@ db.ref("presence").on("value", snap=>{
         <div class="stars" id="stars_${child.key}"></div>
         <small>${data.speciality || "Astrology"}</small><br>
         <small><strong>${data.ratePerMinute}</strong> credits / min</small>
-        <p>${data.description || "No description provided."}</p>
+        <p>${data.experience || "No experience listed."}</p>
+<small>Total chat time: ${data.totalChatTime || 0} minutes</small>
         <div class="review-box">
           <textarea id="reviewText_${child.key}" placeholder="Write a review (optional)"></textarea>
           <button type="button" onclick="submitReview('${child.key}')">Submit Review</button>
