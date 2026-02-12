@@ -880,38 +880,45 @@ setTimeout(()=>{ chatClosing = false; }, 1000);
    ========================================================= */
 /* ================= BILLING & TIMERS ================= */
 /* ---------- Credit Deduction Engine ---------- */
-function startCreditTimer(clientId, astrologerId){
+async function startCreditTimer(clientId, astrologerId){
   if(billingActive) return;
   billingActive = true;
 
   creditInterval = setInterval(async ()=>{
     if(!chatId) return stopBilling();
 
-    const rateSnap = await db.ref("presence/"+astrologerId+"/ratePerMinute").once("value");
-    const rate = rateSnap.val() || 1;
+    try {
+      const rateSnap = await db.ref(`presence/${astrologerId}/ratePerMinute`).once("value");
+      const rate = rateSnap.val() || 1;
 
-    const clientCreditsRef = db.ref("presence/"+clientId+"/credits");
+      // Deduct client credits safely
+      const clientCreditsRef = db.ref(`presence/${clientId}/credits`);
+      const result = await clientCreditsRef.transaction(c => {
+        if((c || 0) < rate) return; // abort transaction if insufficient
+        return c - rate;
+      });
 
-    clientCreditsRef.transaction(c=>{
-      if((c || 0) < rate){
-  db.ref("chats/"+chatId+"/meta").update({
-    active: false,
-    endReason: "Credits exhausted"
-  });
-  return c;
+      if(!result.committed){
+        // Not enough credits → end chat
+        await db.ref(`chats/${chatId}/meta`).update({
+          active: false,
+          endReason: "Credits exhausted"
+        });
+        stopBilling();
+        return;
+      }
+
+      // ✅ Add earnings to astrologer
+      await db.ref(`presence/${astrologerId}/credits`).transaction(a => (a || 0) + rate);
+
+      // ✅ Add to chat meta
+      await db.ref(`chats/${chatId}/meta/earned`).transaction(e => (e || 0) + rate);
+
+    } catch(err){
+      console.error("Credit timer error:", err);
+    }
+  }, 60000); // every minute
 }
-      return c - rate;
-    });
-
-    db.ref("chats/"+chatId+"/meta/earned")
-      .transaction(e => (e || 0) + rate);
-
-db.ref("presence/"+astrologerId+"/credits")
-  .transaction(a => (a || 0) + rate);
-
-  }, 60000);
-}
-
 function stopBilling(){
   billingActive = false;
   if(creditInterval){
