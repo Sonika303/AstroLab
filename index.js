@@ -722,7 +722,11 @@ if(
   meta.active === true &&
   chatStartTime
 ){
-  startCreditTimer(meta.client, meta.astrologer);
+  if(meta.client && meta.astrologer){
+    startCreditTimer(meta.client, meta.astrologer);
+  } else {
+    console.warn("Cannot start billing: invalid client or astrologer ID", meta);
+  }
 }
   // ⏱ ensure timer + billing start reliably
 if(!chatStartTime && meta.started){
@@ -877,6 +881,11 @@ setTimeout(()=>{ chatClosing = false; }, 1000);
 /* ---------- Credit Deduction Engine ---------- */
 async function startCreditTimer(clientId, astrologerId){
   if(billingActive) return;
+   
+   if(!clientId || !astrologerId){
+  console.warn("Invalid client or astrologer ID for billing");
+  return;
+}
   billingActive = true;
 
   creditInterval = setInterval(async ()=>{
