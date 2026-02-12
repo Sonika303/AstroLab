@@ -208,7 +208,7 @@ function ensurePresence(user){
       credits: 0,
       ratePerMinute: 1,
       speciality: "",
-      experience: ""
+      experience: "",
       online: false,
       busy: false,
       lastSeen: Date.now()
