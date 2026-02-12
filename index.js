@@ -214,7 +214,6 @@ function ensurePresence(user){
       description: "",
       online: false,
       busy: false,
-      firstChatUsed: false,
       lastSeen: Date.now()
     });
   });
@@ -237,7 +236,6 @@ function healPresence(uid){
       ratePerMinute: data.ratePerMinute ?? 1,
       speciality: data.speciality || "",
       description: data.description || "",
-      firstChatUsed: data.firstChatUsed ?? false,
       online: data.online ?? false,
       busy: data.busy ?? false,
       role: data.role || "client",
