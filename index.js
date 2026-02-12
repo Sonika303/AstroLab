@@ -319,6 +319,10 @@ watchAstroRate();
   }
 
   if (savedRole) switchRole(savedRole);
+if (role === "astrologer") {
+  const isOnline = localStorage.getItem(ONLINE_KEY) === "1";
+  if (isOnline) startQueueListener();
+}
 
 db.ref("currentChat/" + userId).on("value", snap => {
   if (!snap.exists()) return; 
