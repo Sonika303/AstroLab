@@ -62,10 +62,16 @@ h2 {
   text-align: center;
 }
 
+label {
+  display: block;
+  margin-top: 14px;
+  font-weight: 600;
+}
+
 input, textarea {
   width: 100%;
   padding: 14px 16px;
-  margin-top: 10px;
+  margin-top: 6px;
   border-radius: 16px;
   border: 1px solid var(--border);
   font-size: 14px;
@@ -78,7 +84,7 @@ input:focus, textarea:focus {
 }
 
 button {
-  margin-top: 16px;
+  margin-top: 20px;
   width: 100%;
   padding: 14px;
   border-radius: 16px;
@@ -125,11 +131,15 @@ button:hover {
 <div class="card">
   <h2><i class="fa-solid fa-envelope"></i> Contact AstroLab</h2>
 
-  <form action="https://formsubmit.co/astrolabservice555@gmail.com" method="POST">
-    
+  <form 
+    action="https://formsubmit.co/astrolabservice555@gmail.com" 
+    method="POST" 
+    target="hidden_iframe"
+    onsubmit="setTimeout(function(){ window.location.href='https://sonika303.github.io/AstroLab/'; }, 800);"
+  >
+
     <input type="hidden" name="_captcha" value="false">
     <input type="hidden" name="_subject" value="New Contact Message - AstroLab">
-    <input type="hidden" name="_next" value="https://sonika303.github.io/AstroLab/">
 
     <label>Full Name</label>
     <input type="text" name="name" required>
@@ -144,6 +154,8 @@ button:hover {
       <i class="fa-solid fa-paper-plane"></i> Send Message
     </button>
   </form>
+
+  <iframe name="hidden_iframe" style="display:none;"></iframe>
 
   <div class="back-link">
     <a href="index.html">← Back to Home</a>
