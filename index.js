@@ -222,7 +222,7 @@ function healPresence(uid){
   const ref = db.ref("presence/" + uid);
 
   ref.once("value").then(snap=>{
-    if(!snap.exists()) return;
+    if(!snap.exists() || chatId) return;
 
     const data = snap.val() || {};
 
@@ -359,7 +359,9 @@ function logout(){
 
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(ONLINE_KEY);
-
+  if(queueRef) queueRef.off();
+  if(chatRef) chatRef.off();
+  if(typingRef) typingRef.off();
   auth.signOut().then(() => {
     window.location.href = "auth.html";
   });
@@ -371,6 +373,9 @@ function logout(){
 /* ---------- Role Switching ---------- */
 function switchRole(r){
   if(!userId) return;
+  if(r === "client"){
+  clearMyRequests();
+}
 
   // 🔥 If astrologer switches to client, keep online state but stop UI + queue
   if(role === "astrologer" && r === "client"){
@@ -812,6 +817,7 @@ function exitChat(){
 }
 /* ---------- FORCE CLOSE CHAT (CRITICAL) ---------- */
 function forceCloseChat(message){
+  stopBilling();
   if(chatClosing) return;
   if(!chatId) return;
   chatClosing = true;
