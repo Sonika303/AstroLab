@@ -784,6 +784,31 @@ chatRef.on("child_added", snap=>{
     behavior:"smooth"
   });
 });
+
+// 🔥 TYPING LISTENER
+if(typingRef) typingRef.off();
+
+typingRef = db.ref("chats/"+id+"/typing");
+
+typingRef.on("value", snap=>{
+  const data = snap.val();
+  const box = document.getElementById("typingIndicator");
+
+  if(!box) return;
+
+  if(!data){
+    box.textContent = "";
+    return;
+  }
+
+  const othersTyping = Object.keys(data).filter(uid => uid !== userId);
+
+  if(othersTyping.length > 0){
+    box.textContent = "Typing...";
+  } else {
+    box.textContent = "";
+  }
+});
 }
 /* ---------- Messaging ---------- */
 function sendMessage(){
