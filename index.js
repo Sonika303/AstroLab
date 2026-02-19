@@ -887,23 +887,6 @@ mediaRecorder.onstop = async () => {
 
   audioChunks = [];
 };
-          await ref.put(blob);
-          const url = await ref.getDownloadURL();
-
-          await db.ref("chats/"+chatId+"/messages").push({
-            from:userId,
-            voice:url,
-            time:Date.now()
-          });
-
-        }catch(err){
-          console.error("Voice upload failed:", err);
-        }
-
-        // 🔥 STOP MICROPHONE
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-      };
-
       mediaRecorder.start(); // start recording without timeslice
       isRecording = true;
       btn.classList.add("recording");
