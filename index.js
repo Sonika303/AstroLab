@@ -65,6 +65,7 @@ const astrologerList = document.getElementById("astrologerList");
 const queueList = document.getElementById("queueList");
 const messagesDiv = document.getElementById("messages");
 const msgInput = document.getElementById("msgInput");
+if(msgInput){
 msgInput.addEventListener("input", () => {
   if(!chatId || !partnerId) return;
 
@@ -81,6 +82,7 @@ const avatarPreview = document.getElementById("avatarPreview");
 const s_name = document.getElementById("s_name");
 const s_speciality = document.getElementById("s_speciality");
 const s_desc = document.getElementById("s_desc");
+const s_experience = document.getElementById("s_experience");
 /* =========================================================
    🎨 UI HELPERS & PANELS
    ========================================================= */
