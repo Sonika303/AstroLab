@@ -50,6 +50,10 @@ db.ref("presence").on("child_changed", snap => {
 let creditInterval = null;
 let chatStartTime = null;
 let chatTimerInterval = null;
+/* ================= VOICE RECORDER ================= */
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
 /* =========================================================
    🧩 DOM ELEMENT REFERENCES
    ========================================================= */
@@ -747,31 +751,36 @@ if(!chatStartTime && meta.started){
   if(chatRef) chatRef.off();
   chatRef = db.ref("chats/"+id+"/messages");
 
-  chatRef.on("child_added", snap=>{
-    const msg = snap.val();
-    const div = document.createElement("div");
-    div.className = "message " + (msg.from === userId ? "self" : "");
-    div.textContent = (userCache[msg.from] || "User") + ": " + msg.text;
-    messagesDiv.appendChild(div);
-    messagesDiv.scrollTo({ top: messagesDiv.scrollHeight, behavior:"smooth" });
+chatRef.on("child_added", snap=>{
+  const msg = snap.val();
+  const div = document.createElement("div");
+  div.className = "message " + (msg.from === userId ? "self" : "");
+
+  const name = document.createElement("div");
+  name.style.fontSize = "12px";
+  name.style.opacity = ".7";
+  name.textContent = userCache[msg.from] || "User";
+  div.appendChild(name);
+
+  if(msg.text){
+    const text = document.createElement("div");
+    text.textContent = msg.text;
+    div.appendChild(text);
+  }
+
+  if(msg.voice){
+    const audio = document.createElement("audio");
+    audio.controls = true;
+    audio.src = msg.voice;
+    div.appendChild(audio);
+  }
+
+  messagesDiv.appendChild(div);
+  messagesDiv.scrollTo({
+    top: messagesDiv.scrollHeight,
+    behavior:"smooth"
   });
-  typingRef = db.ref(`chats/${id}/typing`);
-typingRef.on("value", snap => {
-  const box = document.getElementById("typingIndicator");
-  if(!box) return;
-
-  const data = snap.val() || {};
-  const usersTyping = Object.keys(data);
-
-  const otherTyping = usersTyping.includes(partnerId);
-  const selfTyping = usersTyping.includes(userId);
-
-  box.textContent =
-    otherTyping ? `${userCache[partnerId] || "User"} is typing…` :
-    selfTyping ? "You are typing…" :
-    "";
 });
-}
 /* ---------- Messaging ---------- */
 function sendMessage(){
   if(!chatId) return;
@@ -786,6 +795,50 @@ function sendMessage(){
 
   db.ref(`chats/${chatId}/typing/${userId}`).remove();
   msgInput.value="";
+}
+async function toggleRecording(){
+  if(!chatId) return;
+
+  const btn = document.getElementById("recordBtn");
+
+  if(!isRecording){
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      mediaRecorder = new MediaRecorder(stream);
+
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = e=>{
+        audioChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = async ()=>{
+        const blob = new Blob(audioChunks, { type:"audio/webm" });
+        const ref = storage.ref(`voiceMessages/${chatId}/${Date.now()}_${userId}.webm`);
+
+        await ref.put(blob);
+        const url = await ref.getDownloadURL();
+
+        db.ref("chats/"+chatId+"/messages").push({
+          from:userId,
+          voice:url,
+          time:Date.now()
+        });
+      };
+
+      mediaRecorder.start();
+      isRecording = true;
+      btn.classList.add("recording");
+
+    }catch(err){
+      alert("Microphone permission denied");
+    }
+
+  }else{
+    mediaRecorder.stop();
+    isRecording = false;
+    btn.classList.remove("recording");
+  }
 }
 function endChat(){
   if(!chatId) return;
