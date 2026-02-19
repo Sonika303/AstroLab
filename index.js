@@ -757,7 +757,9 @@ if(!chatStartTime && meta.started){
 chatRef.on("child_added", snap=>{
   const msg = snap.val();
   const div = document.createElement("div");
-  div.className = "message " + (msg.from === userId ? "self" : "");
+div.className = "message " + (msg.from === userId ? "self" : "");
+div.style.opacity = "0";
+div.style.transform = "translateY(10px)";
 
   const name = document.createElement("div");
   name.style.fontSize = "12px";
@@ -779,6 +781,11 @@ chatRef.on("child_added", snap=>{
   }
 
   messagesDiv.appendChild(div);
+  setTimeout(()=>{
+    div.style.transition = "all .3s ease";
+    div.style.opacity = "1";
+    div.style.transform = "translateY(0)";
+},50);
   messagesDiv.scrollTo({
     top: messagesDiv.scrollHeight,
     behavior:"smooth"
@@ -813,6 +820,7 @@ typingRef.on("value", snap=>{
 /* ---------- Messaging ---------- */
 function sendMessage(){
   if(!chatId) return;
+
   const text = msgInput.value.trim();
   if(!text) return;
 
@@ -823,7 +831,7 @@ function sendMessage(){
   });
 
   db.ref(`chats/${chatId}/typing/${userId}`).remove();
-  msgInput.value="";
+  msgInput.value = "";
 }
 async function toggleRecording(){
   if(!chatId) return;
@@ -833,29 +841,44 @@ async function toggleRecording(){
   if(!isRecording){
     try{
       const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-      mediaRecorder = new MediaRecorder(stream);
 
+      mediaRecorder = new MediaRecorder(stream);
       audioChunks = [];
 
       mediaRecorder.ondataavailable = e=>{
-        audioChunks.push(e.data);
+        if(e.data.size > 0){
+          audioChunks.push(e.data);
+        }
       };
 
       mediaRecorder.onstop = async ()=>{
-        const blob = new Blob(audioChunks, { type:"audio/webm" });
-        const ref = storage.ref(`voiceMessages/${chatId}/${Date.now()}_${userId}.webm`);
+        try{
+          if(audioChunks.length === 0) return;
 
-        await ref.put(blob);
-        const url = await ref.getDownloadURL();
+          const blob = new Blob(audioChunks, { type:"audio/webm" });
 
-        db.ref("chats/"+chatId+"/messages").push({
-          from:userId,
-          voice:url,
-          time:Date.now()
-        });
+          const ref = storage.ref(
+            `voiceMessages/${chatId}/${Date.now()}_${userId}.webm`
+          );
+
+          await ref.put(blob);
+          const url = await ref.getDownloadURL();
+
+          await db.ref("chats/"+chatId+"/messages").push({
+            from:userId,
+            voice:url,
+            time:Date.now()
+          });
+
+        }catch(err){
+          console.error("Voice upload failed:", err);
+        }
+
+        // 🔥 STOP MICROPHONE
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(200);
       isRecording = true;
       btn.classList.add("recording");
 
@@ -864,7 +887,9 @@ async function toggleRecording(){
     }
 
   }else{
-    mediaRecorder.stop();
+    if(mediaRecorder && mediaRecorder.state !== "inactive"){
+      mediaRecorder.stop();
+    }
     isRecording = false;
     btn.classList.remove("recording");
   }
