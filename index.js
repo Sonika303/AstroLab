@@ -784,6 +784,7 @@ chatRef.on("child_added", snap=>{
     behavior:"smooth"
   });
 });
+}
 /* ---------- Messaging ---------- */
 function sendMessage(){
   if(!chatId) return;
