@@ -664,9 +664,17 @@ button i {
   Live Chat
   <span id="chatTimer" style="font-size:12px;color:#6b7280;">00:00</span>
 </h3>
-  <div class="chat-box" id="messages"></div>
-    <div id="typingIndicator" style="font-size:12px;color:#6b7280;margin:6px 2px;min-height:16px;"></div>
-    <input id="msgInput" placeholder="Type message..." />
+<div style="display:flex;gap:8px;margin-top:8px;">
+  <input id="msgInput" placeholder="Type message..." style="flex:1;" />
+
+  <button type="button" onclick="sendMessage()">
+    <i class="fa-solid fa-paper-plane"></i>
+  </button>
+
+  <button type="button" id="recordBtn" onclick="toggleRecording()">
+    <i class="fa-solid fa-microphone"></i>
+  </button>
+</div>
     <br>
     <button type="button" onclick="sendMessage()">
   <i class="fa-solid fa-paper-plane"></i> Send
