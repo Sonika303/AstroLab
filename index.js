@@ -66,17 +66,18 @@ const queueList = document.getElementById("queueList");
 const messagesDiv = document.getElementById("messages");
 const msgInput = document.getElementById("msgInput");
 if(msgInput){
-msgInput.addEventListener("input", () => {
-  if(!chatId || !partnerId) return;
+  msgInput.addEventListener("input", () => {
+    if(!chatId || !partnerId) return;
 
-  const ref = db.ref(`chats/${chatId}/typing/${userId}`);
-  ref.set(true);
+    const ref = db.ref(`chats/${chatId}/typing/${userId}`);
+    ref.set(true);
 
-  clearTimeout(typingTimeout);
-  typingTimeout = setTimeout(() => {
-    ref.remove();
-  }, 2000);
-});
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      ref.remove();
+    }, 2000);
+  });
+}
 const avatarInput = document.getElementById("avatarInput");
 const avatarPreview = document.getElementById("avatarPreview");
 const s_name = document.getElementById("s_name");
