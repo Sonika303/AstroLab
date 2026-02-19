@@ -851,16 +851,42 @@ async function toggleRecording(){
         }
       };
 
-      mediaRecorder.onstop = async ()=>{
-        try{
-          if(audioChunks.length === 0) return;
+mediaRecorder.onstop = async () => {
+  try {
 
-          const blob = new Blob(audioChunks, { type:"audio/webm" });
+    // Create final audio blob
+    const blob = new Blob(audioChunks, { type: "audio/webm" });
 
-          const ref = storage.ref(
-            `voiceMessages/${chatId}/${Date.now()}_${userId}.webm`
-          );
+    if (blob.size === 0) {
+      console.warn("Voice recording empty");
+      audioChunks = [];
+      return;
+    }
 
+    const ref = storage.ref(
+      `voiceMessages/${chatId}/${Date.now()}_${userId}.webm`
+    );
+
+    await ref.put(blob);
+    const url = await ref.getDownloadURL();
+
+    await db.ref("chats/" + chatId + "/messages").push({
+      from: userId,
+      voice: url,
+      time: Date.now()
+    });
+
+  } catch (err) {
+    console.error("Voice upload failed:", err);
+  }
+
+  // Stop microphone safely
+  if (mediaRecorder?.stream) {
+    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+  }
+
+  audioChunks = [];
+};
           await ref.put(blob);
           const url = await ref.getDownloadURL();
 
@@ -878,7 +904,7 @@ async function toggleRecording(){
         mediaRecorder.stream.getTracks().forEach(track => track.stop());
       };
 
-      mediaRecorder.start(200);
+      mediaRecorder.start(); // start recording without timeslice
       isRecording = true;
       btn.classList.add("recording");
 
@@ -887,9 +913,9 @@ async function toggleRecording(){
     }
 
   }else{
-    if(mediaRecorder && mediaRecorder.state !== "inactive"){
-      mediaRecorder.stop();
-    }
+    if(mediaRecorder && mediaRecorder.state === "recording"){
+  mediaRecorder.stop();
+}
     isRecording = false;
     btn.classList.remove("recording");
   }
