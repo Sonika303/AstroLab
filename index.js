@@ -339,6 +339,9 @@ db.ref("currentChat/" + userId).on("value", snap => {
     }
   });
 });
+startAutoCleanup();
+});
+});
 });
 /* =========================================================
    🚪 LOGOUT & FULL CLEANUP
@@ -1238,3 +1241,56 @@ db.ref("presence").on("value", snap=>{
     }
   });
 });
+/* =========================================================
+   🧹 AUTO CLEANUP ENGINE
+   ========================================================= */
+
+function startAutoCleanup(){
+
+  setInterval(async () => {
+
+    const now = Date.now();
+
+    // 🔥 CLEAN OLD REQUESTS (older than 5 min)
+    const reqSnap = await db.ref("requests").once("value");
+    reqSnap.forEach(astro => {
+      astro.forEach(req => {
+        const data = req.val();
+        if(!data?.time) return;
+
+        if(now - data.time > 5 * 60 * 1000){
+          req.ref.remove();
+          db.ref("requestStatus/" + req.key + "/" + astro.key).remove();
+        }
+      });
+    });
+
+    // 🔥 CLEAN OLD REQUEST STATUS (older than 2 min)
+    const statusSnap = await db.ref("requestStatus").once("value");
+    statusSnap.forEach(client => {
+      client.forEach(astro => {
+        const data = astro.val();
+        if(!data?.time) return;
+
+        if(now - data.time > 2 * 60 * 1000){
+          astro.ref.remove();
+        }
+      });
+    });
+
+    // 🔥 CLEAN DEAD CHATS
+    const chatSnap = await db.ref("chats").once("value");
+    chatSnap.forEach(chat => {
+      const meta = chat.child("meta").val();
+      if(!meta) return;
+
+      const baseTime = meta.endedAt || meta.started;
+      if(!baseTime) return;
+
+      if(meta.active === false || now - baseTime > 60 * 60 * 1000){
+        chat.ref.remove();
+      }
+    });
+
+  }, 5 * 60 * 1000); // every 5 minutes
+}
