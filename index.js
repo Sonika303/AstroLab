@@ -325,9 +325,6 @@ if (role === "astrologer") {
   const isOnline = localStorage.getItem(ONLINE_KEY) === "1";
   if (isOnline) startQueueListener();
 }
-});
-});
-});
 /* =========================================================
    🚪 LOGOUT & FULL CLEANUP
    ========================================================= */
