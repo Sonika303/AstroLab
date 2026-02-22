@@ -325,21 +325,6 @@ if (role === "astrologer") {
   const isOnline = localStorage.getItem(ONLINE_KEY) === "1";
   if (isOnline) startQueueListener();
 }
-
-db.ref("currentChat/" + userId).on("value", snap => {
-  if (!snap.exists()) return; 
-
-  const cid = snap.val();
-  if(!cid || chatId === cid) return;
-
-  db.ref("chats/" + cid + "/meta").once("value").then(mSnap => {
-    const meta = mSnap.val();
-    if(meta && meta.active === true){
-      openChat(cid);
-    }
-  });
-});
-startAutoCleanup();
 });
 });
 });
@@ -364,7 +349,6 @@ function logout(){
   });
 
   // 🔥 cleanup db + local state
-  clearMyRequests();
   db.ref("currentChat/" + userId).remove();
 
   localStorage.removeItem(ROLE_KEY);
@@ -592,10 +576,6 @@ await db.ref("chats/"+chatId+"/meta").set({
 
 await db.ref("presence/"+userId).update({ busy:true });
 await db.ref("presence/"+clientId).update({ busy:true });
-
-await db.ref("currentChat/" + userId).set(chatId);
-await db.ref("currentChat/" + clientId).set(chatId);
-
 await db.ref("requests/"+userId+"/"+queueKey).remove();
 await db.ref("requestStatus/" + clientId + "/" + userId).remove();
      
@@ -1241,56 +1221,3 @@ db.ref("presence").on("value", snap=>{
     }
   });
 });
-/* =========================================================
-   🧹 AUTO CLEANUP ENGINE
-   ========================================================= */
-
-function startAutoCleanup(){
-
-  setInterval(async () => {
-
-    const now = Date.now();
-
-    // 🔥 CLEAN OLD REQUESTS (older than 5 min)
-    const reqSnap = await db.ref("requests").once("value");
-    reqSnap.forEach(astro => {
-      astro.forEach(req => {
-        const data = req.val();
-        if(!data?.time) return;
-
-        if(now - data.time > 5 * 60 * 1000){
-          req.ref.remove();
-          db.ref("requestStatus/" + req.key + "/" + astro.key).remove();
-        }
-      });
-    });
-
-    // 🔥 CLEAN OLD REQUEST STATUS (older than 2 min)
-    const statusSnap = await db.ref("requestStatus").once("value");
-    statusSnap.forEach(client => {
-      client.forEach(astro => {
-        const data = astro.val();
-        if(!data?.time) return;
-
-        if(now - data.time > 2 * 60 * 1000){
-          astro.ref.remove();
-        }
-      });
-    });
-
-    // 🔥 CLEAN DEAD CHATS
-    const chatSnap = await db.ref("chats").once("value");
-    chatSnap.forEach(chat => {
-      const meta = chat.child("meta").val();
-      if(!meta) return;
-
-      const baseTime = meta.endedAt || meta.started;
-      if(!baseTime) return;
-
-      if(meta.active === false || now - baseTime > 60 * 60 * 1000){
-        chat.ref.remove();
-      }
-    });
-
-  }, 5 * 60 * 1000); // every 5 minutes
-}
