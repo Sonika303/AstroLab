@@ -594,6 +594,7 @@ await db.ref("currentChat/" + userId).set(chatId);
 await db.ref("currentChat/" + clientId).set(chatId);
 
 await db.ref("requests/"+userId+"/"+queueKey).remove();
+await db.ref("requestStatus/" + clientId + "/" + userId).remove();
      
 openChat(chatId);
 
@@ -659,14 +660,19 @@ function denyChat(queueKey){
 
   const clientId = queueKey;
 
-  // 1) notify client that request was denied
+  // notify client
   db.ref("requestStatus/" + clientId + "/" + userId).set({
     status: "denied",
     time: Date.now()
   });
 
-  // 2) remove request from astrologer queue
+  // remove queue
   db.ref("requests/" + userId + "/" + queueKey).remove();
+
+  // auto-clean after 3 seconds
+  setTimeout(()=>{
+    db.ref("requestStatus/" + clientId + "/" + userId).remove();
+  }, 3000);
 }
 /* ---------- Queue Cleanup ---------- */
 function clearMyRequests(){
@@ -781,6 +787,7 @@ div.style.transform = "translateY(10px)";
   }
 
   messagesDiv.appendChild(div);
+  snap.ref.remove(); // 🔥 auto-delete message after delivering
   setTimeout(()=>{
     div.style.transition = "all .3s ease";
     div.style.opacity = "1";
@@ -968,6 +975,10 @@ function forceCloseChat(message){
 
   chatId = null;
   partnerId = null;
+  // 🔥 DELETE ENTIRE CHAT NODE
+if(endedChatId){
+  db.ref("chats/" + endedChatId).remove();
+}
 
   const box = document.getElementById("typingIndicator");
   if(box) box.textContent = "";
