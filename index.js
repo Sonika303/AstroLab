@@ -320,11 +320,26 @@ watchAstroRate();
     onlineText.textContent = wasOnline ? "Online" : "Offline";
   }
 
-  if (savedRole) switchRole(savedRole);
+if (savedRole) switchRole(savedRole);
+
 if (role === "astrologer") {
   const isOnline = localStorage.getItem(ONLINE_KEY) === "1";
   if (isOnline) startQueueListener();
 }
+
+/* 🔥 REALTIME CHAT AUTO OPEN (CLIENT + ASTROLOGER) */
+db.ref("chats").on("child_added", snap => {
+  const meta = snap.child("meta").val();
+  if (!meta) return;
+
+  if (
+    meta.active === true &&
+    (meta.client === userId || meta.astrologer === userId)
+  ) {
+    openChat(snap.key);
+  }
+});
+
 });
 /* =========================================================
    🚪 LOGOUT & FULL CLEANUP
@@ -768,7 +783,6 @@ div.style.transform = "translateY(10px)";
   }
 
   messagesDiv.appendChild(div);
-  snap.ref.remove(); // 🔥 auto-delete message after delivering
   setTimeout(()=>{
     div.style.transition = "all .3s ease";
     div.style.opacity = "1";
@@ -958,7 +972,6 @@ function forceCloseChat(message){
   partnerId = null;
   // 🔥 DELETE ENTIRE CHAT NODE
 if(endedChatId){
-  db.ref("chats/" + endedChatId).remove();
 }
 
   const box = document.getElementById("typingIndicator");
