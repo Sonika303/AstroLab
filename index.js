@@ -847,49 +847,43 @@ async function toggleRecording(){
       mediaRecorder = new MediaRecorder(stream);
       audioChunks = [];
 
-      mediaRecorder.ondataavailable = e=>{
-        if(e.data.size > 0){
+      mediaRecorder.ondataavailable = e => {
+        if(e.data && e.data.size > 0){
           audioChunks.push(e.data);
         }
       };
 
-mediaRecorder.onstop = async () => {
-  try {
+      mediaRecorder.onstop = async () => {
+        try{
+          if(audioChunks.length === 0){
+            console.warn("No audio recorded");
+            return;
+          }
 
-    // Create final audio blob
-    const blob = new Blob(audioChunks, { type: "audio/webm" });
+          const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
 
-    if (blob.size === 0) {
-      console.warn("Voice recording empty");
-      audioChunks = [];
-      return;
-    }
+          const ref = storage.ref(
+            `voiceMessages/${chatId}/${Date.now()}_${userId}.webm`
+          );
 
-    const ref = storage.ref(
-      `voiceMessages/${chatId}/${Date.now()}_${userId}.webm`
-    );
+          await ref.put(blob);
+          const url = await ref.getDownloadURL();
 
-    await ref.put(blob);
-    const url = await ref.getDownloadURL();
+          await db.ref("chats/"+chatId+"/messages").push({
+            from: userId,
+            voice: url,
+            time: Date.now()
+          });
 
-    await db.ref("chats/" + chatId + "/messages").push({
-      from: userId,
-      voice: url,
-      time: Date.now()
-    });
+        }catch(err){
+          console.error("Voice upload failed:", err);
+        }
 
-  } catch (err) {
-    console.error("Voice upload failed:", err);
-  }
+        stream.getTracks().forEach(track => track.stop());
+        audioChunks = [];
+      };
 
-  // Stop microphone safely
-  if (mediaRecorder?.stream) {
-    mediaRecorder.stream.getTracks().forEach(track => track.stop());
-  }
-
-  audioChunks = [];
-};
-      mediaRecorder.start(); // start recording without timeslice
+      mediaRecorder.start(1000); // IMPORTANT FIX
       isRecording = true;
       btn.classList.add("recording");
 
@@ -899,8 +893,9 @@ mediaRecorder.onstop = async () => {
 
   }else{
     if(mediaRecorder && mediaRecorder.state === "recording"){
-  mediaRecorder.stop();
-}
+      mediaRecorder.stop();
+    }
+
     isRecording = false;
     btn.classList.remove("recording");
   }
