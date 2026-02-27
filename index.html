@@ -744,6 +744,21 @@ button i {
     <button type="button" onclick="exitChat()">
   <i class="fa-solid fa-xmark"></i> End Chat
 </button>
+    <!-- ⭐ REVIEW SECTION -->
+<div id="reviewSection" class="hidden" style="margin-top:15px;">
+  <h4>Leave a Review</h4>
+
+  <div class="star-select" id="starSelect">
+    <i class="fa-solid fa-star" data-value="1"></i>
+    <i class="fa-solid fa-star" data-value="2"></i>
+    <i class="fa-solid fa-star" data-value="3"></i>
+    <i class="fa-solid fa-star" data-value="4"></i>
+    <i class="fa-solid fa-star" data-value="5"></i>
+  </div>
+
+  <textarea id="reviewText" placeholder="Write your review..."></textarea>
+  <button type="button" onclick="submitReview()">Submit Review</button>
+</div>
   </div>
 
 </div>
