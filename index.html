@@ -27,6 +27,50 @@ html {
 }
 @media (max-width: 480px) {
 }
+/* ⭐ STAR SELECTOR */
+.star-select {
+  margin: 8px 0;
+  font-size: 22px;
+}
+
+.star-select i {
+  cursor: pointer;
+  color: #d1d5db;
+  margin-right: 4px;
+  transition: .2s;
+}
+
+.star-select i.active {
+  color: #f59e0b;
+}
+
+/* REVIEW CARD */
+.review-card {
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 12px;
+  margin-top: 8px;
+  background: #fff;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-header img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.review-delete-btn {
+  margin-top: 6px;
+  background: #ef4444;
+  font-size: 12px;
+  padding: 6px 8px;
+}
 @media (max-width: 768px) {
   .extra-pages {
     display: none;
@@ -395,6 +439,7 @@ button i {
   margin-top:6px;
 }
   /* ---------- REVIEW SIDE PANEL ---------- */
+  
 .review-panel {
   position: relative;
   margin-top: 12px;
@@ -681,12 +726,6 @@ button i {
 <div id="typingIndicator" 
      style="font-size:13px; opacity:.6; margin-bottom:8px;">
 </div>
-
-<!-- 🔥 ADD THIS -->
-<div id="messages" class="chat-box"></div>
-<div id="typingIndicator" style="font-size:13px;opacity:.6;margin:6px 0;"></div>
-<!-- 🔥 END ADD -->
-
 <div style="display:flex;gap:8px;margin-top:8px;">
   <input id="msgInput" placeholder="Type message..." style="flex:1;" />
 
