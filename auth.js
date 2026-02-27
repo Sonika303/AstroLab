@@ -33,9 +33,9 @@ auth.onAuthStateChanged(user => {
             Your account is already active.<br>
             You can safely close this page.
           </p>
-          <button onclick="window.close()" style="padding:12px 20px;border-radius:12px;border:none;background:#6366f1;color:#fff;font-weight:600;cursor:pointer;">
-            Close
-          </button>
+<button onclick="window.location.href='index.html'" style="padding:12px 20px;border-radius:12px;border:none;background:#6366f1;color:#fff;font-weight:600;cursor:pointer;">
+  Go to Home
+</button>
         </div>
       </div>
     `;
