@@ -39,13 +39,14 @@ let userCache = {}; // cache usernames
 db.ref("presence").on("child_added", snap => {
   const d = snap.val();
   if(!d) return;
-  userCache[snap.key] = d.username || "User";
+userCache[snap.key] = d.username || "User";
+userCache[snap.key + "_avatar"] = d.avatar || "";   
 });
-
 db.ref("presence").on("child_changed", snap => {
   const d = snap.val();
   if(!d) return;
-  userCache[snap.key] = d.username || "User";
+userCache[snap.key] = d.username || "User";
+userCache[snap.key + "_avatar"] = d.avatar || "";
 });
 let creditInterval = null;
 let chatStartTime = null;
@@ -274,6 +275,10 @@ auth.onAuthStateChanged(user => {
   }
   
 userId = user.uid;
+const uidBox = document.getElementById("uidDisplay");
+if(uidBox){
+  uidBox.textContent = user.uid;
+}
 ensurePresence(user);
 healPresence(user.uid);
 
@@ -1123,6 +1128,7 @@ function watchTodayEarnings(){
    ⭐ REVIEWS & RATINGS
    ========================================================= */
 /* ================= REVIEWS ================= */
+let selectedRatings = {}; // store selected rating per astrologer
 function renderStars(astrologerId){
   const el = document.getElementById("stars_" + astrologerId);
   if(!el) return;
@@ -1139,6 +1145,16 @@ function renderStars(astrologerId){
     const avg = count ? Math.round(total / count) : 0;
     el.innerHTML = "★".repeat(avg) + "☆".repeat(5 - avg);
   });
+}
+function selectStar(astrologerId, rating){
+  selectedRatings[astrologerId] = rating;
+
+  for(let i=1;i<=5;i++){
+    const el = document.getElementById(`selectStar_${astrologerId}_${i}`);
+    if(el){
+      el.textContent = i <= rating ? "★" : "☆";
+    }
+  }
 }
 function loadReviews(astrologerId){
   const box = document.getElementById("reviews_" + astrologerId);
@@ -1157,10 +1173,34 @@ function loadReviews(astrologerId){
       total += d.rating || 0;
       count++;
 
-      const div = document.createElement("div");
-      div.className = "review";
-      div.textContent = `${"★".repeat(d.rating || 0)} - ${d.text || ""}`;
-      box.appendChild(div);
+const div = document.createElement("div");
+div.className = "review";
+
+const user = userCache[d.from] || "User";
+
+div.innerHTML = `
+  <div style="display:flex;align-items:center;gap:8px;">
+    <img src="${(userCache[d.from+'_avatar'] || 'https://via.placeholder.com/30')}" 
+         style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
+    <strong>${user}</strong>
+    <span style="margin-left:auto;color:#f59e0b;">
+      ${"★".repeat(d.rating || 0)}
+    </span>
+  </div>
+  <div style="margin-top:6px;color:#475569;">
+    ${d.text || ""}
+  </div>
+  ${
+    (role === "astrologer" && astrologerId === userId) 
+    ? `<button style="margin-top:6px;background:#ef4444"
+         onclick="deleteReview('${astrologerId}','${r.key}')">
+         Delete
+       </button>` 
+    : ""
+  }
+`;
+
+box.appendChild(div);
     });
 
     stats.textContent = count
@@ -1177,8 +1217,9 @@ function submitReview(astrologerId){
   const text = textEl.value.trim();
   if(!text) return alert("Write something");
 
-  const rating = 5; // fixed 5-star for now (polished, simple)
-
+const rating = selectedRatings[astrologerId] || 0;
+if(rating === 0) return alert("Select rating");
+   
   db.ref("reviews/" + astrologerId).push({
     from: userId,
     rating,
@@ -1187,6 +1228,11 @@ function submitReview(astrologerId){
   });
 
   textEl.value = "";
+}
+function deleteReview(astrologerId, reviewId){
+  if(!confirm("Delete this review?")) return;
+
+  db.ref("reviews/"+astrologerId+"/"+reviewId).remove();
 }
 /* =========================================================
    🧑 CLIENT VIEW RENDERING
@@ -1209,9 +1255,19 @@ db.ref("presence").on("value", snap=>{
         <p>${data.experience || "No experience listed."}</p>
 <small>Total chat time: ${data.totalChatTime || 0} minutes</small>
         <div class="review-box">
-          <textarea id="reviewText_${child.key}" placeholder="Write a review (optional)"></textarea>
-          <button type="button" onclick="submitReview('${child.key}')">Submit Review</button>
-        </div>
+  <div class="star-select" id="starSelect_${child.key}">
+    ${[1,2,3,4,5].map(i=>`
+      <span 
+        onclick="selectStar('${child.key}', ${i})" 
+        id="selectStar_${child.key}_${i}"
+        class="select-star">☆</span>
+    `).join("")}
+  </div>
+  <textarea id="reviewText_${child.key}" placeholder="Write a review"></textarea>
+  <button type="button" onclick="submitReview('${child.key}')">
+    Submit Review
+  </button>
+</div>
         <div class="review-panel">
           <div class="review-stats" id="reviewStats_${child.key}"></div>
           <div class="review-scroll" id="reviews_${child.key}"></div>
