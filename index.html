@@ -284,7 +284,7 @@ body {
     position: relative;
   z-index: 2;
   flex: 1;
-  padding: 24px;
+  padding: clamp(16px, 3vw, 32px);
   overflow-y: auto;
   animation: fadeIn .4s ease;
 }
@@ -376,7 +376,7 @@ input, textarea {
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: #ffffff;
-  font-size: 14px;
+  font-size: clamp(14px, 1.1vw, 16px);
   color: var(--text-main);
 }
 
