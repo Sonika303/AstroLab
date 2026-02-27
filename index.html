@@ -15,7 +15,7 @@
 
 <style>
 html {
-  font-size: clamp(14px, 1.05vw, 16px);
+  font-size: clamp(13px, 1vw, 17px);
 }
 img{
   max-width:100%;
@@ -125,6 +125,8 @@ button{
 
 body {
   margin: 0;
+  width: 100%;
+  overflow-x: hidden;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -195,9 +197,9 @@ body {
 }
 /* ---------- SIDEBAR ---------- */
 .sidebar {
-    position: relative;
+  position: relative;
   z-index: 2;
-  width: 260px;
+  width: clamp(200px, 18vw, 260px);
   background: linear-gradient(180deg, #ffffff, #f8fafc);
   border-right: 1px solid var(--border);
   padding: 22px;
@@ -306,6 +308,8 @@ body {
 }
 /* ---------- CARDS ---------- */
 .card {
+  width: 100%;
+  max-width: 100%;
   position: relative; /* ✅ REQUIRED */
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
@@ -426,7 +430,7 @@ button i {
 }
 /* ---------- CHAT ---------- */
 .chat-box {
-  height: 320px;
+  height: clamp(260px, 40vh, 420px);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 12px;
@@ -769,7 +773,6 @@ button i {
   <span id="chatTimer" style="font-size:12px;color:#6b7280;">00:00</span>
 </h3>
 <div id="messages" class="chat-box" 
-     style="height:350px; overflow-y:auto; 
      margin:12px 0; padding:10px; 
      background:#f8fafc; border-radius:12px;">
 </div>
