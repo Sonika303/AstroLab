@@ -28,11 +28,14 @@ body{
 .auth-wrap{
   display:flex;
   gap:24px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 20px;
 }
 
 /* cards */
 .card{
-  width:340px;
+  width: clamp(280px, 90vw, 380px);
   background:#fff;
   padding:26px;
   border-radius:18px;
@@ -112,6 +115,16 @@ small{
   margin-top:10px;
   color:#64748b;
   cursor:pointer;
+}
+@media (max-width: 768px) {
+  .auth-wrap {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .form-card {
+    transform: none !important;
+  }
 }
 </style>
 </head>
