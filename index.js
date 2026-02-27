@@ -98,33 +98,65 @@ function toggleSettings(){
 /* ---------- Auth UI ---------- */
 function showNotSignedIn(){
   document.body.innerHTML = `
-    <div style="
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-family:Inter,system-ui;
-      background:#f8fafc;
-    ">
-      <div style="
-        background:#fff;
-        padding:32px;
-        border-radius:18px;
-        box-shadow:0 30px 60px rgba(0,0,0,.12);
-        text-align:center;
-        max-width:380px;
-      ">
-        <h2>Oops 😕</h2>
-        <p style="color:#64748b;margin:12px 0 20px;">
-          Looks like you are not signed in.<br>
-          Please sign up or log in to continue.
+    <div class="auth-block">
+      <div class="auth-card">
+        <h2>Not Signed In</h2>
+        <p>
+          You are currently not signed in.<br>
+          Please sign in to continue using AstroLab.
         </p>
-        <button onclick="location.href='auth.html'">
-          Go to Sign In
+        <button onclick="window.location.href='auth.html'">
+          Sign In
         </button>
       </div>
     </div>
   `;
+}
+/* ================= AUTH BLOCK (NOT SIGNED IN) ================= */
+
+.auth-block{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+
+.auth-card{
+  background:var(--bg-soft);
+  padding:clamp(24px,4vw,40px);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-xl);
+  text-align:center;
+  width:100%;
+  max-width:420px;
+}
+
+.auth-card h2{
+  margin:0 0 12px;
+  font-size:clamp(20px,3vw,26px);
+}
+
+.auth-card p{
+  color:var(--text-soft);
+  font-size:clamp(14px,2vw,16px);
+  margin-bottom:20px;
+  line-height:1.5;
+}
+
+.auth-card button{
+  padding:12px 18px;
+  border:none;
+  border-radius:var(--radius-md);
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  color:white;
+  font-weight:600;
+  cursor:pointer;
+  width:100%;
+}
+
+.auth-card button:hover{
+  box-shadow:0 15px 35px var(--primary-glow);
 }
 /* ---------- Profile UI ---------- */
 function loadProfile(){
