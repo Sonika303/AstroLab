@@ -112,52 +112,6 @@ function showNotSignedIn(){
     </div>
   `;
 }
-/* ================= AUTH BLOCK (NOT SIGNED IN) ================= */
-
-.auth-block{
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-}
-
-.auth-card{
-  background:var(--bg-soft);
-  padding:clamp(24px,4vw,40px);
-  border-radius:var(--radius-lg);
-  box-shadow:var(--shadow-xl);
-  text-align:center;
-  width:100%;
-  max-width:420px;
-}
-
-.auth-card h2{
-  margin:0 0 12px;
-  font-size:clamp(20px,3vw,26px);
-}
-
-.auth-card p{
-  color:var(--text-soft);
-  font-size:clamp(14px,2vw,16px);
-  margin-bottom:20px;
-  line-height:1.5;
-}
-
-.auth-card button{
-  padding:12px 18px;
-  border:none;
-  border-radius:var(--radius-md);
-  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
-  color:white;
-  font-weight:600;
-  cursor:pointer;
-  width:100%;
-}
-
-.auth-card button:hover{
-  box-shadow:0 15px 35px var(--primary-glow);
-}
 /* ---------- Profile UI ---------- */
 function loadProfile(){
   if(!userId) return;
