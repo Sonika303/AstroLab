@@ -250,6 +250,19 @@ connectedRef.on("value", snap => {
     }
   }
 });
+document.addEventListener("visibilitychange", () => {
+  if (!userId) return;
+
+  if (document.visibilityState === "visible") {
+    const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
+    const savedRole = localStorage.getItem(ROLE_KEY);
+
+    if (savedRole === "astrologer" && wasOnline) {
+      toggleOnline(true);
+      startQueueListener(); // also restart queue
+    }
+  }
+});
 /* =========================================================
    🔐 AUTH SESSION & RESTORE
    ========================================================= */
@@ -1224,48 +1237,69 @@ function deleteReview(astrologerId, reviewId){
    🧑 CLIENT VIEW RENDERING
    ========================================================= */
 /* ================= CLIENT VIEW ================= */
-db.ref("presence").on("value", snap=>{
-  astrologerList.innerHTML = "";
-  snap.forEach(child=>{
-    const data = child.val();
-    if(data.role === "astrologer" && data.online === true){
-      const uname = data.username || child.key;
-      const div = document.createElement("div");
-      div.className = "card";
-      div.innerHTML = `
-        <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
-        <strong>${uname}</strong>
-        <div class="stars" id="stars_${child.key}"></div>
-        <small>${data.speciality || "Astrology"}</small><br>
-        <small><strong>${data.ratePerMinute}</strong> credits / min</small>
-        <p>${data.experience || "No experience listed."}</p>
-<small>Total chat time: ${data.totalChatTime || 0} minutes</small>
-        <div class="review-box">
-  <div class="star-select" id="starSelect_${child.key}">
-    ${[1,2,3,4,5].map(i=>`
-      <span 
-        onclick="selectStar('${child.key}', ${i})" 
-        id="selectStar_${child.key}_${i}"
-        class="select-star">☆</span>
-    `).join("")}
-  </div>
-  <textarea id="reviewText_${child.key}" placeholder="Write a review"></textarea>
-  <button type="button" onclick="submitReview('${child.key}')">
-    Submit Review
-  </button>
-</div>
-        <div class="review-panel">
-          <div class="review-stats" id="reviewStats_${child.key}"></div>
-          <div class="review-scroll" id="reviews_${child.key}"></div>
-        </div>
-        <button type="button" onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
-          ${(!data.online || data.busy) ? "disabled" : ""}>
-          ${data.busy ? "Busy" : "Request Chat"}
-        </button>
-      `;
-      astrologerList.appendChild(div);
-      renderStars(child.key);
-      loadReviews(child.key);
-    }
+const astroRef = db.ref("presence");
+
+astroRef.orderByChild("role")
+  .equalTo("astrologer")
+  .on("child_added", snap => {
+    renderAstrologerCard(snap);
   });
-});
+
+astroRef.orderByChild("role")
+  .equalTo("astrologer")
+  .on("child_changed", snap => {
+    const existing = document.getElementById("astro_" + snap.key);
+    if (existing) existing.remove();
+    renderAstrologerCard(snap);
+  });
+
+function renderAstrologerCard(child){
+  const data = child.val();
+  if(data.online !== true) return;
+
+  const uname = data.username || child.key;
+
+  const div = document.createElement("div");
+  div.className = "card";
+  div.id = "astro_" + child.key;
+
+  div.innerHTML = `
+    <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
+    <strong>${uname}</strong>
+    <div class="stars" id="stars_${child.key}"></div>
+    <small>${data.speciality || "Astrology"}</small><br>
+    <small><strong>${data.ratePerMinute}</strong> credits / min</small>
+    <p>${data.experience || "No experience listed."}</p>
+    <small>Total chat time: ${data.totalChatTime || 0} minutes</small>
+
+    <div class="review-box">
+      <div class="star-select" id="starSelect_${child.key}">
+        ${[1,2,3,4,5].map(i=>`
+          <span onclick="selectStar('${child.key}', ${i})"
+            id="selectStar_${child.key}_${i}"
+            class="select-star">☆</span>
+        `).join("")}
+      </div>
+      <textarea id="reviewText_${child.key}" placeholder="Write a review"></textarea>
+      <button type="button" onclick="submitReview('${child.key}')">
+        Submit Review
+      </button>
+    </div>
+
+    <div class="review-panel">
+      <div class="review-stats" id="reviewStats_${child.key}"></div>
+      <div class="review-scroll" id="reviews_${child.key}"></div>
+    </div>
+
+    <button type="button"
+      onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
+      ${(!data.online || data.busy) ? "disabled" : ""}>
+      ${data.busy ? "Busy" : "Request Chat"}
+    </button>
+  `;
+
+  astrologerList.appendChild(div);
+
+  renderStars(child.key);
+  loadReviews(child.key);
+}
