@@ -407,7 +407,13 @@ function applyRole(r){
   if(!chatId){
     chatView.classList.add("hidden");
   }
-
+  // 🔥 refresh reviews after role change
+setTimeout(()=>{
+  document.querySelectorAll("[id^='reviews_']").forEach(el=>{
+    const astroId = el.id.replace("reviews_","");
+    loadReviews(astroId);
+  });
+}, 300);
   if(r === "astrologer"){
     watchTodayEarnings();
   } else {
@@ -1161,8 +1167,8 @@ function loadReviews(astrologerId){
   if(!box || !stats) return;
 
   const ref = db.ref("reviews/" + astrologerId).limitToLast(10);
-  ref.off();
 
+  // 🔥 DO NOT use ref.off() here
   ref.on("value", snap=>{
     box.innerHTML = "";
     let total = 0, count = 0;
@@ -1172,34 +1178,36 @@ function loadReviews(astrologerId){
       total += d.rating || 0;
       count++;
 
-const div = document.createElement("div");
-div.className = "review";
+      const div = document.createElement("div");
+      div.className = "review-card";
 
-const user = userCache[d.from] || "User";
+      const user = userCache[d.from] || "User";
+      const avatar = userCache[d.from+'_avatar'] || "https://via.placeholder.com/36";
 
-div.innerHTML = `
-  <div style="display:flex;align-items:center;gap:8px;">
-    <img src="${(userCache[d.from+'_avatar'] || 'https://via.placeholder.com/30')}" 
-         style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
-    <strong>${user}</strong>
-    <span style="margin-left:auto;color:#f59e0b;">
-      ${"★".repeat(d.rating || 0)}
-    </span>
-  </div>
-  <div style="margin-top:6px;color:#475569;">
-    ${d.text || ""}
-  </div>
-  ${
-    (role === "astrologer" && astrologerId === userId) 
-    ? `<button style="margin-top:6px;background:#ef4444"
-         onclick="deleteReview('${astrologerId}','${r.key}')">
-         Delete
-       </button>` 
-    : ""
-  }
-`;
+      div.innerHTML = `
+        <div class="review-header">
+          <img src="${avatar}">
+          <strong>${user}</strong>
+          <span style="margin-left:auto;color:#f59e0b;">
+            ${"★".repeat(d.rating || 0)}
+          </span>
+        </div>
 
-box.appendChild(div);
+        <div style="margin-top:6px;color:#475569;">
+          ${d.text || ""}
+        </div>
+      `;
+
+      // 🔥 CREATE DELETE BUTTON PROPERLY
+      if(role === "astrologer" && astrologerId === userId){
+        const btn = document.createElement("button");
+        btn.className = "review-delete-btn";
+        btn.textContent = "Delete";
+        btn.onclick = () => deleteReview(astrologerId, r.key);
+        div.appendChild(btn);
+      }
+
+      box.appendChild(div);
     });
 
     stats.textContent = count
@@ -1255,10 +1263,7 @@ astroRef.orderByChild("role")
 
 function renderAstrologerCard(child){
   const data = child.val();
-  if(data.online !== true) return;
-
   const uname = data.username || child.key;
-
   const div = document.createElement("div");
   div.className = "card";
   div.id = "astro_" + child.key;
@@ -1292,10 +1297,16 @@ function renderAstrologerCard(child){
     </div>
 
     <button type="button"
-      onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
-      ${(!data.online || data.busy) ? "disabled" : ""}>
-      ${data.busy ? "Busy" : "Request Chat"}
-    </button>
+  onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
+  ${data.online !== true || data.busy ? "disabled" : ""}>
+  ${
+    data.online !== true
+      ? "Offline"
+      : data.busy
+      ? "Busy"
+      : "Request Chat"
+  }
+</button>
   `;
 
   astrologerList.appendChild(div);
