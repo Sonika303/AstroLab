@@ -238,29 +238,34 @@ function healPresence(uid){
 connectedRef.on("value", snap => {
   if (!userId) return;
 
-  isConnected = snap.val() === true;
+  const connected = snap.val() === true;
+  if (!connected) return;
 
-  // 🔥 When connection is restored
-  if (isConnected) {
-    const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
-    const savedRole = localStorage.getItem(ROLE_KEY);
+  const ref = db.ref("presence/" + userId);
 
-    if (savedRole === "astrologer" && wasOnline) {
-      toggleOnline(true); // 🔥 RE-ANNOUNCE ONLINE
-    }
-  }
-});
-document.addEventListener("visibilitychange", () => {
-  if (!userId) return;
+  const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
+  const savedRole = localStorage.getItem(ROLE_KEY);
 
-  if (document.visibilityState === "visible") {
-    const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
-    const savedRole = localStorage.getItem(ROLE_KEY);
+  if (savedRole === "astrologer" && wasOnline) {
 
-    if (savedRole === "astrologer" && wasOnline) {
-      toggleOnline(true);
-      startQueueListener(); // also restart queue
-    }
+    // 🔥 ALWAYS re-announce online on reconnect
+    ref.update({
+      role: "astrologer",
+      online: true,
+      busy: false,
+      lastSeen: Date.now()
+    });
+
+    ref.onDisconnect().update({
+      online: false,
+      busy: false,
+      lastSeen: firebase.database.ServerValue.TIMESTAMP
+    });
+
+    startQueueListener();
+
+    const txt = document.getElementById("onlineStatusText");
+    if(txt) txt.textContent = "Online";
   }
 });
 /* =========================================================
@@ -280,6 +285,25 @@ if(uidBox){
 }
 ensurePresence(user);
 healPresence(user.uid);
+
+// 🔥 LIVE ONLINE WATCHER
+db.ref("presence/" + user.uid + "/online")
+  .on("value", snap=>{
+    const isOnline = snap.val() === true;
+
+    const txt = document.getElementById("onlineStatusText");
+    if(txt) txt.textContent = isOnline ? "Online" : "Offline";
+
+const dot = document.getElementById("statusDot");
+if(dot){
+  dot.classList.toggle("online", isOnline);
+}
+
+    localStorage.setItem(ONLINE_KEY, isOnline ? "1" : "0");
+
+    const toggle = document.getElementById("onlineToggle");
+    if(toggle) toggle.checked = isOnline;
+  });
 
 db.ref("requestStatus/" + userId).on("child_added", snap=>{
   const data = snap.val();
