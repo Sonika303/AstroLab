@@ -657,46 +657,6 @@ if(role === "astrologer" && userId){
     alert("Failed to start chat. Try again.");
   }
 }
-function buyCredits(amount){
-  if(!userId){
-    alert("You are not logged in.");
-    return;
-  }
-
-  let link = "";
-
-  if(amount === 49){
-    link = "";
-  } 
-  else if(amount === 99){
-    link = "";
-  } 
-  else if(amount === 249){
-    link = "";
-  }
-
-  if(!link){
-    alert("Invalid package");
-    return;
-  }
-
-  const email = auth.currentUser?.email || "unknown";
-
-  // 🔥 IMPORTANT: PASS UID + EMAIL TO RAZORPAY
-  const params =
-    "?uid=" + encodeURIComponent(userId) +
-    "&email=" + encodeURIComponent(email) +
-    "&amount=" + amount +
-    "&time=" + Date.now();
-
-  alert(
-    "Payment page will open.\n\n" +
-    "Credits will be added within 24 hours.\n\n" +
-    "Your User ID is saved automatically."
-  );
-
-  window.open(link + params, "_blank");
-}
 function denyChat(queueKey){
   if(!userId) return;
 
