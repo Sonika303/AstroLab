@@ -755,15 +755,21 @@ button i {
   </div>
 
   <p><strong>Your Credits:</strong> <span id="creditBalance">0</span></p>
+<div class="card">
+  <h3>Buy Credits</h3>
 
-  <div class="card">
-    <h3>Buy Credits</h3>
-    <button type="button" onclick="buyCredits(49)">💠 ₹49 — Get 50 Credits</button>
-    <button type="button" onclick="buyCredits(99)">⭐ ₹99 — Get 100 Credits</button>
-    <button type="button" onclick="buyCredits(249)">🔥 ₹249 — Get 250 Credits</button>
-    <small style="color:#64748b;">Credits will be added within 24 hours after payment.</small>
-  </div>
+  <form>
+    <script
+      src="https://checkout.razorpay.com/v1/payment-button.js"
+      data-payment_button_id="pl_SLyHMsdkqcfvTe"
+      async>
+    </script>
+  </form>
 
+  <small style="color:#64748b;">
+    Credits will be added within 24 hours after payment.
+  </small>
+</div>
   <hr>
   <!-- ASTROLOGER VIEW -->
 <div id="astrologerView" class="hidden">
