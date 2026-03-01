@@ -275,6 +275,13 @@ auth.onAuthStateChanged(user => {
   }
   
 userId = user.uid;
+// 🔊 Unlock audio on first click
+document.body.addEventListener("click", ()=>{
+  requestSound.play().then(()=>{
+    requestSound.pause();
+    requestSound.currentTime = 0;
+  }).catch(()=>{});
+},{ once:true });
 const uidBox = document.getElementById("uidDisplay");
 if(uidBox){
   uidBox.textContent = user.uid;
@@ -424,23 +431,15 @@ function applyRole(r){
 
   clientView.classList.toggle("hidden", r !== "client");
   astrologerView.classList.toggle("hidden", r !== "astrologer");
+
   if(!chatId){
     chatView.classList.add("hidden");
   }
-  // 🔥 refresh reviews after role change
-setTimeout(()=>{
-  document.querySelectorAll("[id^='reviews_']").forEach(el=>{
-    const astroId = el.id.replace("reviews_","");
-    loadReviews(astroId);
-  });
-}, 300);
+
+  // ⚠️ IMPORTANT:
+  // Only update DB role if going ONLINE as astrologer
   if(r === "astrologer"){
-    watchTodayEarnings();
-  } else {
-    if(earningsRef){
-      earningsRef.off();
-      earningsRef = null;
-    }
+    db.ref("presence/"+userId+"/role").set("astrologer");
   }
 }
 /* ---------- Online Toggle ---------- */
@@ -452,7 +451,6 @@ function toggleOnline(isOnline){
 
   if (isOnline) {
     ref.update({
-      role: "astrologer",
       online: true,
       busy: false,
       lastSeen: Date.now()
@@ -498,7 +496,7 @@ function startQueueListener(){
   queueList.innerHTML="";
   queueRef = db.ref("requests/"+userId);
   queueRef.off();
-queueRef.on("child_added", snap=>{
+queueRef.limitToLast(1).on("child_added", snap=>{
   const data = snap.val();
   requestSound.currentTime = 0;
   requestSound.play().catch(()=>{});
@@ -1352,6 +1350,24 @@ function renderAstrologerCard(child){
   renderStars(child.key);
   loadReviews(child.key);
 }
+db.ref("presence/" + child.key).on("value", snap=>{
+  const d = snap.val();
+  const btn = document.getElementById("reqBtn_" + child.key);
+  if(!btn || !d) return;
+
+  if(d.online !== true){
+    btn.textContent = "Offline";
+    btn.disabled = true;
+  }
+  else if(d.busy){
+    btn.textContent = "Busy";
+    btn.disabled = true;
+  }
+  else{
+    btn.textContent = "Request Chat";
+    btn.disabled = false;
+  }
+});
 db.ref("presence/" + child.key).on("value", snap=>{
   const d = snap.val();
   const btn = document.getElementById("reqBtn_" + child.key);
