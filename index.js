@@ -1293,7 +1293,10 @@ function renderAstrologerCard(child){
   div.id = "astro_" + child.key;
 
   div.innerHTML = `
-    <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
+    <div class="avatar-wrapper">
+  <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
+  <span class="status-dot ${data.online ? 'online' : ''}"></span>
+</div>
     <strong>${uname}</strong>
     <div class="stars" id="stars_${child.key}"></div>
     <small>${data.speciality || "Astrology"}</small><br>
