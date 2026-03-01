@@ -17,6 +17,8 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 const db = firebase.database();
 const storage = firebase.storage();
+const requestSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+requestSound.volume = 0.6;
 /* =========================================================
    🧠 GLOBAL RUNTIME STATE
    ========================================================= */
@@ -238,22 +240,11 @@ function healPresence(uid){
 connectedRef.on("value", snap => {
   if (!userId) return;
 
-  const connected = snap.val() === true;
-  if (!connected) return;
+  if (snap.val() === true) {
+    const ref = db.ref("presence/" + userId);
 
-  const ref = db.ref("presence/" + userId);
-
-  const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
-  const savedRole = localStorage.getItem(ROLE_KEY);
-
-  if (savedRole === "astrologer" && wasOnline) {
-
-    // 🔥 ALWAYS re-announce online on reconnect
     ref.update({
-      role: "astrologer",
-      online: true,
-      busy: false,
-      lastSeen: Date.now()
+      lastSeen: firebase.database.ServerValue.TIMESTAMP
     });
 
     ref.onDisconnect().update({
@@ -262,10 +253,15 @@ connectedRef.on("value", snap => {
       lastSeen: firebase.database.ServerValue.TIMESTAMP
     });
 
-    startQueueListener();
-
-    const txt = document.getElementById("onlineStatusText");
-    if(txt) txt.textContent = "Online";
+    // 🔥 If role is astrologer → auto restore online
+    db.ref("presence/" + userId + "/role").once("value")
+      .then(rSnap => {
+        if (rSnap.val() === "astrologer") {
+          ref.update({
+            online: true
+          });
+        }
+      });
   }
 });
 /* =========================================================
@@ -504,6 +500,8 @@ function startQueueListener(){
   queueRef.off();
 queueRef.on("child_added", snap=>{
   const data = snap.val();
+  requestSound.currentTime = 0;
+  requestSound.play().catch(()=>{});
 
   const div = document.createElement("div");
   div.className = "card";
@@ -624,6 +622,13 @@ await db.ref("chats/"+chatId+"/meta").set({
 await db.ref("presence/"+userId).update({ busy:true });
 await db.ref("presence/"+clientId).update({ busy:true });
 await db.ref("requests/"+userId+"/"+queueKey).remove();
+await db.ref("requests").once("value").then(snap=>{
+  snap.forEach(a=>{
+    if(a.child(clientId).exists()){
+      db.ref("requests/"+a.key+"/"+clientId).remove();
+    }
+  });
+});
 await db.ref("requestStatus/" + clientId + "/" + userId).remove();
      
 openChat(chatId);
@@ -726,6 +731,9 @@ function clearMyRequests(){
 /* ================= CHAT CORE ================= */
 /* ---------- Open & Sync Chat ---------- */
 function openChat(id){
+  if(chatId && chatId !== id){
+  return;
+}
   if(chatId && chatId === id && chatView.classList.contains("hidden") === false){
   return;
 }
@@ -1223,7 +1231,7 @@ function loadReviews(astrologerId){
       `;
 
       // 🔥 CREATE DELETE BUTTON PROPERLY
-      if(role === "astrologer" && astrologerId === userId){
+      if(astrologerId === userId){
         const btn = document.createElement("button");
         btn.className = "review-delete-btn";
         btn.textContent = "Delete";
@@ -1325,7 +1333,10 @@ function renderAstrologerCard(child){
 
     <button type="button"
   onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
-  ${data.online !== true || data.busy ? "disabled" : ""}>
+ <button type="button"
+  id="reqBtn_${child.key}"
+  onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})">
+</button>
   ${
     data.online !== true
       ? "Offline"
@@ -1341,3 +1352,21 @@ function renderAstrologerCard(child){
   renderStars(child.key);
   loadReviews(child.key);
 }
+db.ref("presence/" + child.key).on("value", snap=>{
+  const d = snap.val();
+  const btn = document.getElementById("reqBtn_" + child.key);
+  if(!btn || !d) return;
+
+  if(d.online !== true){
+    btn.textContent = "Offline";
+    btn.disabled = true;
+  }
+  else if(d.busy){
+    btn.textContent = "Busy";
+    btn.disabled = true;
+  }
+  else{
+    btn.textContent = "Request Chat";
+    btn.disabled = false;
+  }
+});
