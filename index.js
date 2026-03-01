@@ -1394,37 +1394,3 @@ db.ref("presence/" + child.key).on("value", snap=>{
   renderStars(child.key);
   loadReviews(child.key);
 }
-  const d = snap.val();
-  const btn = document.getElementById("reqBtn_" + child.key);
-  if(!btn || !d) return;
-
-  if(d.online !== true){
-    btn.textContent = "Offline";
-    btn.disabled = true;
-  }
-  else if(d.busy){
-    btn.textContent = "Busy";
-    btn.disabled = true;
-  }
-  else{
-    btn.textContent = "Request Chat";
-    btn.disabled = false;
-  }
-});
-  const d = snap.val();
-  const btn = document.getElementById("reqBtn_" + child.key);
-  if(!btn || !d) return;
-
-  if(d.online !== true){
-    btn.textContent = "Offline";
-    btn.disabled = true;
-  }
-  else if(d.busy){
-    btn.textContent = "Busy";
-    btn.disabled = true;
-  }
-  else{
-    btn.textContent = "Request Chat";
-    btn.disabled = false;
-  }
-});
