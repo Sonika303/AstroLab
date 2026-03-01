@@ -342,10 +342,13 @@ watchAstroRate();
     onlineToggle.checked = wasOnline;
   }
 
-  if (savedRole === "astrologer" && wasOnline) {
+if(savedRole === "astrologer"){
+  switchRole("astrologer");
+
+  if(wasOnline){
     toggleOnline(true);
   }
-
+}
   const onlineText = document.getElementById("onlineStatusText");
   if (onlineText) {
     onlineText.textContent = wasOnline ? "Online" : "Offline";
@@ -411,20 +414,26 @@ function logout(){
 /* ---------- Role Switching ---------- */
 function switchRole(r){
   if(!userId) return;
-  if(r === "client"){
-  clearMyRequests();
-}
 
-  // 🔥 If astrologer switches to client, keep online state but stop UI + queue
-  if(role === "astrologer" && r === "client"){
-    stopQueueListener();           // stop queue UI
-    astrologerView.classList.add("hidden");
-    clientView.classList.remove("hidden");
+  if(r === "client"){
+    clearMyRequests();
   }
 
-  applyRole(r);
-}
+  role = r;
+  localStorage.setItem(ROLE_KEY, r);
 
+  clientView.classList.toggle("hidden", r !== "client");
+  astrologerView.classList.toggle("hidden", r !== "astrologer");
+
+  if(r === "astrologer"){
+    db.ref("presence/"+userId+"/role").set("astrologer");
+
+    const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
+    if(wasOnline){
+      toggleOnline(true);
+    }
+  }
+}
 function applyRole(r){
   role = r;
   localStorage.setItem(ROLE_KEY, r);
@@ -1091,6 +1100,27 @@ function stopBilling(){
     creditInterval = null;
   }
 }
+function updateRate(){
+  if(!userId) return;
+
+  const input = document.getElementById("rateInput");
+  const value = parseInt(input.value);
+
+  if(!value || value < 1){
+    alert("Enter valid rate (minimum 1)");
+    return;
+  }
+
+  db.ref("presence/"+userId+"/ratePerMinute")
+    .set(value)
+    .then(()=>{
+      input.value = "";
+      alert("Rate updated successfully");
+    })
+    .catch(()=>{
+      alert("Failed to update rate");
+    });
+}
 /* ---------- Chat Timer UI ---------- */
 function startChatTimer(){
   stopChatTimer();
@@ -1277,20 +1307,16 @@ function deleteReview(astrologerId, reviewId){
 /* ================= CLIENT VIEW ================= */
 const astroRef = db.ref("presence");
 
-astroRef.orderByChild("role")
-  .equalTo("astrologer")
-  .on("child_added", snap => {
-    renderAstrologerCard(snap);
-  });
+astroRef.on("value", snap => {
+  astrologerList.innerHTML = "";
 
-astroRef.orderByChild("role")
-  .equalTo("astrologer")
-  .on("child_changed", snap => {
-    const existing = document.getElementById("astro_" + snap.key);
-    if (existing) existing.remove();
-    renderAstrologerCard(snap);
+  snap.forEach(child => {
+    const data = child.val();
+    if(data.role === "astrologer"){
+      renderAstrologerCard(child);
+    }
   });
-
+});
 function renderAstrologerCard(child){
   const data = child.val();
   const uname = data.username || child.key;
@@ -1331,10 +1357,10 @@ function renderAstrologerCard(child){
 
     <button type="button"
   onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
- <button type="button"
+<button 
+  type="button"
   id="reqBtn_${child.key}"
   onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})">
-</button>
   ${
     data.online !== true
       ? "Offline"
@@ -1344,12 +1370,7 @@ function renderAstrologerCard(child){
   }
 </button>
   `;
-
-  astrologerList.appendChild(div);
-
-  renderStars(child.key);
-  loadReviews(child.key);
-}
+  // 🔥 LIVE BUTTON UPDATE
 db.ref("presence/" + child.key).on("value", snap=>{
   const d = snap.val();
   const btn = document.getElementById("reqBtn_" + child.key);
@@ -1368,7 +1389,28 @@ db.ref("presence/" + child.key).on("value", snap=>{
     btn.disabled = false;
   }
 });
-db.ref("presence/" + child.key).on("value", snap=>{
+  astrologerList.appendChild(div);
+
+  renderStars(child.key);
+  loadReviews(child.key);
+}
+  const d = snap.val();
+  const btn = document.getElementById("reqBtn_" + child.key);
+  if(!btn || !d) return;
+
+  if(d.online !== true){
+    btn.textContent = "Offline";
+    btn.disabled = true;
+  }
+  else if(d.busy){
+    btn.textContent = "Busy";
+    btn.disabled = true;
+  }
+  else{
+    btn.textContent = "Request Chat";
+    btn.disabled = false;
+  }
+});
   const d = snap.val();
   const btn = document.getElementById("reqBtn_" + child.key);
   if(!btn || !d) return;
