@@ -876,12 +876,19 @@ async function toggleRecording(){
 
         const blob = new Blob(audioChunks, { type: "audio/webm" });
 
-        const ref = storage.ref(
-          `voiceMessages/${chatId}/${Date.now()}_${userId}.webm`
-        );
+const reader = new FileReader();
 
-        await ref.put(blob);
-        const url = await ref.getDownloadURL();
+reader.onloadend = async () => {
+  const base64data = reader.result;
+
+  await db.ref("chats/"+chatId+"/messages").push({
+    from: userId,
+    voice: base64data,
+    time: Date.now()
+  });
+};
+
+reader.readAsDataURL(blob);
 
         await db.ref("chats/"+chatId+"/messages").push({
           from:userId,
