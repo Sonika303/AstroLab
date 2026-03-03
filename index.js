@@ -502,39 +502,51 @@ function toggleOnlineBtn(){
    ========================================================= */
 /* ================= QUEUE ================= */
 function startQueueListener(){
-  queueList.innerHTML="";
-  queueRef = db.ref("requests/"+userId);
+  queueList.innerHTML = "";
+
+  queueRef = db.ref("requests/" + userId);
+
   queueRef.off();
-queueRef.limitToLast(1).on("child_added", snap=>{
-  const data = snap.val();
-  requestSound.currentTime = 0;
-  requestSound.play().catch(()=>{});
 
-  const div = document.createElement("div");
-  div.className = "card";
-  div.id = "req_" + snap.key;
+  // 🔥 INSTANT REALTIME
+  queueRef.on("child_added", snap=>{
+    const data = snap.val();
+    if(!data) return;
 
-  div.innerHTML = `
-    Request from <strong class="clientName">Loading…</strong><br>
-    <button type="button" onclick="acceptChat('${snap.key}','${data.client}')">Accept</button>
-    <button type="button" style="background:#dc2626"
-      onclick="denyChat('${snap.key}')">Deny</button>
-  `;
+    requestSound.currentTime = 0;
+    requestSound.play().catch(()=>{});
 
-  queueList.appendChild(div);
+    const div = document.createElement("div");
+    div.className = "card";
+    div.id = "req_" + snap.key;
 
-  db.ref("presence/" + data.client + "/username")
-    .once("value")
-    .then(s => {
-      div.querySelector(".clientName").textContent =
-        s.val() || "Client";
-    });
-});
-queueRef.on("child_removed", snap=>{
-  const el = document.getElementById("req_" + snap.key);
-  if(el) el.remove();
-});
+    div.innerHTML = `
+      Request from <strong class="clientName">Loading…</strong><br>
+      <button type="button"
+        onclick="acceptChat('${snap.key}','${data.client}')">
+        Accept
+      </button>
+      <button type="button"
+        style="background:#dc2626"
+        onclick="denyChat('${snap.key}')">
+        Deny
+      </button>
+    `;
 
+    queueList.prepend(div); // 🔥 instant top insert
+
+    db.ref("presence/" + data.client + "/username")
+      .once("value")
+      .then(s=>{
+        div.querySelector(".clientName").textContent =
+          s.val() || "Client";
+      });
+  });
+
+  queueRef.on("child_removed", snap=>{
+    const el = document.getElementById("req_" + snap.key);
+    if(el) el.remove();
+  });
 }
 function stopQueueListener(){ if(queueRef) queueRef.off(); queueList.innerHTML=""; }
 /* ---------- Client → Astrologer Requests ---------- */
@@ -889,13 +901,6 @@ reader.onloadend = async () => {
 };
 
 reader.readAsDataURL(blob);
-
-        await db.ref("chats/"+chatId+"/messages").push({
-          from:userId,
-          voice:url,
-          time:Date.now()
-        });
-
         audioStream.getTracks().forEach(t => t.stop());
         stopWaveAnimation();
       };
