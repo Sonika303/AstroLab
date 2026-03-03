@@ -844,55 +844,59 @@ function sendMessage(){
   db.ref(`chats/${chatId}/typing/${userId}`).remove();
   msgInput.value = "";
 }
+let audioStream = null;
+let audioContext = null;
+let analyser = null;
+let animationFrame = null;
+
 async function toggleRecording(){
   if(!chatId) return;
 
   const btn = document.getElementById("recordBtn");
 
   if(!isRecording){
-    try{
-      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
 
-      mediaRecorder = new MediaRecorder(stream);
+    try{
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+
+      mediaRecorder = new MediaRecorder(audioStream);
       audioChunks = [];
 
       mediaRecorder.ondataavailable = e => {
-        if(e.data && e.data.size > 0){
+        if(e.data.size > 0){
           audioChunks.push(e.data);
         }
       };
 
       mediaRecorder.onstop = async () => {
-        try{
-          if(audioChunks.length === 0){
-            console.warn("No audio recorded");
-            return;
-          }
-
-          const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-
-          const ref = storage.ref(
-            `voiceMessages/${chatId}/${Date.now()}_${userId}.webm`
-          );
-
-          await ref.put(blob);
-          const url = await ref.getDownloadURL();
-
-          await db.ref("chats/"+chatId+"/messages").push({
-            from: userId,
-            voice: url,
-            time: Date.now()
-          });
-
-        }catch(err){
-          console.error("Voice upload failed:", err);
+        if(audioChunks.length === 0){
+          console.warn("Empty recording");
+          return;
         }
 
-        stream.getTracks().forEach(track => track.stop());
-        audioChunks = [];
+        const blob = new Blob(audioChunks, { type: "audio/webm" });
+
+        const ref = storage.ref(
+          `voiceMessages/${chatId}/${Date.now()}_${userId}.webm`
+        );
+
+        await ref.put(blob);
+        const url = await ref.getDownloadURL();
+
+        await db.ref("chats/"+chatId+"/messages").push({
+          from:userId,
+          voice:url,
+          time:Date.now()
+        });
+
+        audioStream.getTracks().forEach(t => t.stop());
+        stopWaveAnimation();
       };
 
-      mediaRecorder.start(1000); // IMPORTANT FIX
+      mediaRecorder.start(); // 🔥 removed 1000 chunk timer
+
+      startWaveAnimation(audioStream);
+
       isRecording = true;
       btn.classList.add("recording");
 
@@ -907,6 +911,45 @@ async function toggleRecording(){
 
     isRecording = false;
     btn.classList.remove("recording");
+  }
+}
+function startWaveAnimation(stream){
+  const btn = document.getElementById("recordBtn");
+
+  audioContext = new AudioContext();
+  analyser = audioContext.createAnalyser();
+  const source = audioContext.createMediaStreamSource(stream);
+
+  source.connect(analyser);
+  analyser.fftSize = 64;
+
+  const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+  function animate(){
+    analyser.getByteFrequencyData(dataArray);
+
+    let volume = dataArray.reduce((a,b)=>a+b,0) / dataArray.length;
+
+    btn.style.boxShadow = `0 0 ${volume/2}px ${volume/4}px rgba(239,68,68,.6)`;
+    btn.style.transform = `scale(${1 + volume/500})`;
+
+    animationFrame = requestAnimationFrame(animate);
+  }
+
+  animate();
+}
+
+function stopWaveAnimation(){
+  const btn = document.getElementById("recordBtn");
+
+  cancelAnimationFrame(animationFrame);
+
+  btn.style.boxShadow = "";
+  btn.style.transform = "";
+
+  if(audioContext){
+    audioContext.close();
+    audioContext = null;
   }
 }
 function endChat(){
