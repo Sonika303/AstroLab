@@ -16,7 +16,6 @@ const auth = firebase.auth();
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 const db = firebase.database();
-const storage = firebase.storage();
 const requestSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
 requestSound.volume = 0.6;
 /* =========================================================
@@ -53,10 +52,6 @@ userCache[snap.key + "_avatar"] = d.avatar || "";
 let creditInterval = null;
 let chatStartTime = null;
 let chatTimerInterval = null;
-/* ================= VOICE RECORDER ================= */
-let mediaRecorder = null;
-let audioChunks = [];
-let isRecording = false;
 /* =========================================================
    🧩 DOM ELEMENT REFERENCES
    ========================================================= */
@@ -796,13 +791,6 @@ div.style.transform = "translateY(10px)";
     div.appendChild(text);
   }
 
-  if(msg.voice){
-    const audio = document.createElement("audio");
-    audio.controls = true;
-    audio.src = msg.voice;
-    div.appendChild(audio);
-  }
-
   messagesDiv.appendChild(div);
   setTimeout(()=>{
     div.style.transition = "all .3s ease";
@@ -856,113 +844,27 @@ function sendMessage(){
   db.ref(`chats/${chatId}/typing/${userId}`).remove();
   msgInput.value = "";
 }
-let audioStream = null;
-let audioContext = null;
-let analyser = null;
-let animationFrame = null;
+let recognition = null;
 
-async function toggleRecording(){
-  if(!chatId) return;
-
-  const btn = document.getElementById("recordBtn");
-
-  if(!isRecording){
-
-    try{
-      audioStream = await navigator.mediaDevices.getUserMedia({ audio:true });
-
-      mediaRecorder = new MediaRecorder(audioStream);
-      audioChunks = [];
-
-      mediaRecorder.ondataavailable = e => {
-        if(e.data.size > 0){
-          audioChunks.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        if(audioChunks.length === 0){
-          console.warn("Empty recording");
-          return;
-        }
-
-        const blob = new Blob(audioChunks, { type: "audio/webm" });
-
-const reader = new FileReader();
-
-reader.onloadend = async () => {
-  const base64data = reader.result;
-
-  await db.ref("chats/"+chatId+"/messages").push({
-    from: userId,
-    voice: base64data,
-    time: Date.now()
-  });
-};
-
-reader.readAsDataURL(blob);
-        audioStream.getTracks().forEach(t => t.stop());
-        stopWaveAnimation();
-      };
-
-      mediaRecorder.start(); // 🔥 removed 1000 chunk timer
-
-      startWaveAnimation(audioStream);
-
-      isRecording = true;
-      btn.classList.add("recording");
-
-    }catch(err){
-      alert("Microphone permission denied");
-    }
-
-  }else{
-    if(mediaRecorder && mediaRecorder.state === "recording"){
-      mediaRecorder.stop();
-    }
-
-    isRecording = false;
-    btn.classList.remove("recording");
-  }
-}
-function startWaveAnimation(stream){
-  const btn = document.getElementById("recordBtn");
-
-  audioContext = new AudioContext();
-  analyser = audioContext.createAnalyser();
-  const source = audioContext.createMediaStreamSource(stream);
-
-  source.connect(analyser);
-  analyser.fftSize = 64;
-
-  const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-  function animate(){
-    analyser.getByteFrequencyData(dataArray);
-
-    let volume = dataArray.reduce((a,b)=>a+b,0) / dataArray.length;
-
-    btn.style.boxShadow = `0 0 ${volume/2}px ${volume/4}px rgba(239,68,68,.6)`;
-    btn.style.transform = `scale(${1 + volume/500})`;
-
-    animationFrame = requestAnimationFrame(animate);
+function startSpeech(){
+  if(!('webkitSpeechRecognition' in window)){
+    alert("Speech recognition not supported");
+    return;
   }
 
-  animate();
-}
+  if(!recognition){
+    recognition = new webkitSpeechRecognition();
+    recognition.lang = "en-IN";
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
-function stopWaveAnimation(){
-  const btn = document.getElementById("recordBtn");
-
-  cancelAnimationFrame(animationFrame);
-
-  btn.style.boxShadow = "";
-  btn.style.transform = "";
-
-  if(audioContext){
-    audioContext.close();
-    audioContext = null;
+    recognition.onresult = function(event){
+      const transcript = event.results[0][0].transcript;
+      msgInput.value = transcript;
+    };
   }
+
+  recognition.start();
 }
 function endChat(){
   if(!chatId) return;
