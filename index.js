@@ -143,7 +143,10 @@ function saveSettings(){
   }
 
   const name = s_name.value.trim().toLowerCase();
-  if(!name) return alert("Name required");
+  if(!name){
+    alert("Name required");
+    return;
+  }
 
   const data = {
     username: name,
@@ -151,9 +154,8 @@ function saveSettings(){
     experience: s_experience.value
   };
 
-  db.ref("presence/"+userId).update(data).then(()=>{
-    alert("Settings saved");
-  });
+  db.ref("presence/"+userId).update(data)
+    .then(()=> alert("Settings saved"));
 }
   const ref = storage.ref(`avatars/${userId}.jpg`);
   ref.put(file)
