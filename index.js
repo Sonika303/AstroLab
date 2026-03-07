@@ -177,6 +177,29 @@ function saveSettings(){
       showError("Image upload failed");
     });
 }
+function uploadAvatar(file){
+  if(!file || !userId) return;
+
+  const storage = firebase.storage();
+  const ref = storage.ref(`avatars/${userId}.jpg`);
+
+  ref.put(file)
+    .then(()=> ref.getDownloadURL())
+    .then(url=>{
+      const bustedUrl = url + "?v=" + Date.now();
+
+      return db.ref("presence/"+userId).update({
+        avatar: bustedUrl
+      }).then(()=>{
+        avatarPreview.src = bustedUrl;
+        alert("Avatar updated");
+      });
+    })
+    .catch(err=>{
+      console.error(err);
+      alert("Image upload failed");
+    });
+}
 /* =========================================================
    🟢 USER PRESENCE & HEARTBEAT
    ========================================================= */
