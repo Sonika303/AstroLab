@@ -157,26 +157,6 @@ function saveSettings(){
   db.ref("presence/"+userId).update(data)
     .then(()=> alert("Settings saved"));
 }
-  const ref = storage.ref(`avatars/${userId}.jpg`);
-  ref.put(file)
-    .then(()=>ref.getDownloadURL())
-    .then(url=>{
-      // 🔥 cache-busting
-      const bustedUrl = url + "?v=" + Date.now();
-
-      baseData.avatar = bustedUrl;
-
-      return db.ref("presence/"+userId).update(baseData).then(()=>{
-        avatarPreview.src = bustedUrl;
-        avatarInput.value = "";
-        alert("Settings saved");
-      });
-    })
-    .catch(err=>{
-      console.error(err);
-      showError("Image upload failed");
-    });
-}
 function uploadAvatar(file){
   if(!file || !userId) return;
 
@@ -1297,9 +1277,6 @@ function renderAstrologerCard(child){
       <div class="review-stats" id="reviewStats_${child.key}"></div>
       <div class="review-scroll" id="reviews_${child.key}"></div>
     </div>
-
-    <button type="button"
-  onclick="requestChat('${child.key}', ${data.ratePerMinute || 0})"
 <button 
   type="button"
   id="reqBtn_${child.key}"
@@ -1312,8 +1289,7 @@ function renderAstrologerCard(child){
       : "Request Chat"
   }
 </button>
-  `;
-  // 🔥 LIVE BUTTON UPDATE
+`;
 db.ref("presence/" + child.key).on("value", snap=>{
   const d = snap.val();
   const btn = document.getElementById("reqBtn_" + child.key);
