@@ -121,7 +121,7 @@ s_speciality.value = d.speciality || "";
 s_experience.value = d.experience || ""; 
 
    const fallbackAvatar =
-  `https://api.dicebear.com/7.x/adventurer/svg?seed=${userId}`;
+  `https://api.dicebear.com/7.x/shapes/svg?seed=${userId}`;
 
 avatarPreview.src = d.avatar
   ? d.avatar + "&r=" + Date.now()
@@ -196,7 +196,7 @@ function ensurePresence(user){
     ref.set({
       username: user.displayName || "user_" + user.uid.slice(0,6),
       avatar: user.photoURL ||
-      `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`,
+      `https://api.dicebear.com/7.x/shapes/svg?seed=${user.uid}`,
       role: "client",
       credits: 0,
       ratePerMinute: 1,
@@ -1163,7 +1163,7 @@ function loadReviews(astrologerId){
       const user = userCache[d.from] || "User";
       const avatar =
   userCache[d.from+'_avatar'] ||
-  `https://api.dicebear.com/7.x/adventurer/svg?seed=${d.from}`;
+  `https://api.dicebear.com/7.x/shapes/svg?seed=${d.from}`;
 
       div.innerHTML = `
         <div class="review-header">
@@ -1248,7 +1248,7 @@ function renderAstrologerCard(child){
   div.innerHTML = `
     <div class="avatar-wrapper">
   <img class="avatar"
-    src="${data.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${child.key}`}"
+    src="${data.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${child.key}`}"
   >
   <span class="status-dot ${data.online ? 'online' : ''}"></span>
 </div>
