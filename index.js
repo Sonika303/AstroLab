@@ -76,7 +76,6 @@ if(msgInput){
     }, 2000);
   });
 }
-const avatarInput = document.getElementById("avatarInput");
 const avatarPreview = document.getElementById("avatarPreview");
 const s_name = document.getElementById("s_name");
 const s_speciality = document.getElementById("s_speciality");
@@ -129,13 +128,12 @@ avatarPreview.src = d.avatar
   : fallbackAvatar;
   });
 }
-function updateProfile(name, avatar){
+function updateProfile(name){   
 const data = {
   username: name,
   speciality: s_speciality.value,
   experience: s_experience.value
 };
-  if(avatar) data.avatar = avatar;
   db.ref("presence/"+userId).update(data);
 }
 function saveSettings(){
@@ -144,23 +142,19 @@ function saveSettings(){
     return;
   }
 
-  const file = avatarInput.files[0];
   const name = s_name.value.trim().toLowerCase();
-  if(!name) return showError("Name required");
+  if(!name) return alert("Name required");
 
-  const baseData = {
-  username: name,
-  speciality: s_speciality.value,
-  experience: s_experience.value // use experience input instead
-};
+  const data = {
+    username: name,
+    speciality: s_speciality.value,
+    experience: s_experience.value
+  };
 
-  if(!file){
-    db.ref("presence/"+userId).update(baseData).then(()=>{
-      alert("Settings saved");
-    });
-    return;
-  }
-
+  db.ref("presence/"+userId).update(data).then(()=>{
+    alert("Settings saved");
+  });
+}
   const ref = storage.ref(`avatars/${userId}.jpg`);
   ref.put(file)
     .then(()=>ref.getDownloadURL())
@@ -1162,7 +1156,9 @@ function loadReviews(astrologerId){
       div.className = "review-card";
 
       const user = userCache[d.from] || "User";
-      const avatar = userCache[d.from+'_avatar'] || "https://via.placeholder.com/36";
+      const avatar =
+  userCache[d.from+'_avatar'] ||
+  `https://api.dicebear.com/7.x/adventurer/svg?seed=${d.from}`;
 
       div.innerHTML = `
         <div class="review-header">
@@ -1246,9 +1242,9 @@ function renderAstrologerCard(child){
 
   div.innerHTML = `
     <div class="avatar-wrapper">
-  const avatar =
-  userCache[d.from+'_avatar'] ||
-  `https://api.dicebear.com/7.x/adventurer/svg?seed=${d.from}`;
+  <img class="avatar"
+    src="${data.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${child.key}`}"
+  >
   <span class="status-dot ${data.online ? 'online' : ''}"></span>
 </div>
     <strong>${uname}</strong>
