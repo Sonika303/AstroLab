@@ -121,10 +121,12 @@ s_name.value = d.username || "";
 s_speciality.value = d.speciality || "";
 s_experience.value = d.experience || ""; 
 
-    // 🔥 force reload avatar
-    avatarPreview.src = d.avatar 
-      ? d.avatar + "&r=" + Date.now()
-      : "https://via.placeholder.com/80";
+   const fallbackAvatar =
+  `https://api.dicebear.com/7.x/adventurer/svg?seed=${userId}`;
+
+avatarPreview.src = d.avatar
+  ? d.avatar + "&r=" + Date.now()
+  : fallbackAvatar;
   });
 }
 function updateProfile(name, avatar){
@@ -194,7 +196,8 @@ function ensurePresence(user){
 
     ref.set({
       username: user.displayName || "user_" + user.uid.slice(0,6),
-      avatar: user.photoURL || "",
+      avatar: user.photoURL ||
+      `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`,
       role: "client",
       credits: 0,
       ratePerMinute: 1,
@@ -1243,7 +1246,9 @@ function renderAstrologerCard(child){
 
   div.innerHTML = `
     <div class="avatar-wrapper">
-  <img src="${data.avatar || 'https://via.placeholder.com/80'}" class="avatar">
+  const avatar =
+  userCache[d.from+'_avatar'] ||
+  `https://api.dicebear.com/7.x/adventurer/svg?seed=${d.from}`;
   <span class="status-dot ${data.online ? 'online' : ''}"></span>
 </div>
     <strong>${uname}</strong>
