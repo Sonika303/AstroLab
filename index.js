@@ -52,6 +52,31 @@ userCache[snap.key + "_avatar"] = d.avatar || "";
 let creditInterval = null;
 let chatStartTime = null;
 let chatTimerInterval = null;
+/* ================= INITIAL AVATAR ================= */
+function createInitialAvatar(name, color){
+  const n = (name || "U").trim();
+  const parts = n.split(" ");
+  const initials =
+    parts.length > 1
+      ? parts[0][0] + parts[1][0]
+      : parts[0][0];
+
+  const bg = color || "#6366f1";
+
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
+    <rect width="100%" height="100%" rx="40" fill="${bg}"/>
+    <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
+      font-family="Inter, sans-serif"
+      font-size="32"
+      fill="#ffffff"
+      font-weight="600">
+      ${initials.toUpperCase()}
+    </text>
+  </svg>`;
+
+  return "data:image/svg+xml;base64," + btoa(svg);
+}
 /* =========================================================
    🧩 DOM ELEMENT REFERENCES
    ========================================================= */
@@ -121,7 +146,7 @@ s_speciality.value = d.speciality || "";
 s_experience.value = d.experience || ""; 
 
    const fallbackAvatar =
-  `https://api.dicebear.com/7.x/shapes/svg?seed=${userId}`;
+  createInitialAvatar(d.username || "User", d.avatarColor);
 
 avatarPreview.src = d.avatar
   ? d.avatar + "&r=" + Date.now()
@@ -1248,7 +1273,7 @@ function renderAstrologerCard(child){
   div.innerHTML = `
     <div class="avatar-wrapper">
   <img class="avatar"
-    src="${data.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${child.key}`}"
+    src="${data.avatar || createInitialAvatar(data.username || 'User', data.avatarColor)}"
   >
   <span class="status-dot ${data.online ? 'online' : ''}"></span>
 </div>
