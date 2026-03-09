@@ -42,12 +42,14 @@ db.ref("presence").on("child_added", snap => {
   if(!d) return;
 userCache[snap.key] = d.username || "User";
 userCache[snap.key + "_avatar"] = d.avatar || "";   
+userCache[snap.key + "_color"] = d.avatarColor || "#6366f1";
 });
 db.ref("presence").on("child_changed", snap => {
   const d = snap.val();
   if(!d) return;
 userCache[snap.key] = d.username || "User";
 userCache[snap.key + "_avatar"] = d.avatar || "";
+userCache[snap.key + "_color"] = d.avatarColor || "#6366f1";
 });
 let creditInterval = null;
 let chatStartTime = null;
@@ -144,6 +146,10 @@ function loadProfile(){
 s_name.value = d.username || "";
 s_speciality.value = d.speciality || "";
 s_experience.value = d.experience || ""; 
+const picker = document.getElementById("avatarColorPicker");
+if(picker){
+  picker.value = d.avatarColor || "#6366f1";
+}
 
    const fallbackAvatar =
   createInitialAvatar(d.username || "User", d.avatarColor);
@@ -205,6 +211,20 @@ function uploadAvatar(file){
       alert("Image upload failed");
     });
 }
+function saveAvatarColor(){
+  if(!userId) return;
+
+  const picker = document.getElementById("avatarColorPicker");
+  if(!picker) return;
+
+  const color = picker.value;
+
+  db.ref("presence/"+userId).update({
+    avatarColor: color
+  }).then(()=>{
+    loadProfile();
+  });
+}
 /* =========================================================
    🟢 USER PRESENCE & HEARTBEAT
    ========================================================= */
@@ -220,8 +240,8 @@ function ensurePresence(user){
 
     ref.set({
       username: user.displayName || "user_" + user.uid.slice(0,6),
-      avatar: user.photoURL ||
-      `https://api.dicebear.com/7.x/shapes/svg?seed=${user.uid}`,
+      avatar: user.photoURL || "",
+      avatarColor: "#6366f1",
       role: "client",
       credits: 0,
       ratePerMinute: 1,
@@ -1188,7 +1208,10 @@ function loadReviews(astrologerId){
       const user = userCache[d.from] || "User";
       const avatar =
   userCache[d.from+'_avatar'] ||
-  `https://api.dicebear.com/7.x/shapes/svg?seed=${d.from}`;
+  createInitialAvatar(
+    userCache[d.from] || "User",
+    userCache[d.from+'_color']
+  );
 
       div.innerHTML = `
         <div class="review-header">
