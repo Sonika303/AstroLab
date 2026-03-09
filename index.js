@@ -299,15 +299,14 @@ connectedRef.on("value", snap => {
       lastSeen: firebase.database.ServerValue.TIMESTAMP
     });
 
-    // 🔥 If role is astrologer → auto restore online
-    db.ref("presence/" + userId + "/role").once("value")
-      .then(rSnap => {
-        if (rSnap.val() === "astrologer") {
-          ref.update({
-            online: true
-          });
-        }
+    // ✅ restore online only if toggle was ON
+    const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
+
+    if (wasOnline) {
+      ref.update({
+        online: true
       });
+    }
   }
 });
 /* =========================================================
