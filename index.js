@@ -17,6 +17,10 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 const db = firebase.database();
 const requestSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+/* ================= ASTROLOGER ACCESS CONTROL ================= */
+const ASTROLOGERS = [
+  "VIKQOOfZtKbycTuVZDgtyoT2QLu2"
+];
 requestSound.volume = 0.6;
 /* =========================================================
    🧠 GLOBAL RUNTIME STATE
@@ -331,6 +335,10 @@ if(uidBox){
 ensurePresence(user);
 healPresence(user.uid);
 
+if(ASTROLOGERS.includes(user.uid)){
+  db.ref("presence/"+user.uid+"/role").set("astrologer");
+}
+
 // 🔥 LIVE ONLINE WATCHER
 db.ref("presence/" + user.uid + "/online")
   .on("value", snap=>{
@@ -467,14 +475,20 @@ function switchRole(r){
   clientView.classList.toggle("hidden", r !== "client");
   astrologerView.classList.toggle("hidden", r !== "astrologer");
 
-  if(r === "astrologer"){
-    db.ref("presence/"+userId+"/role").set("astrologer");
+ if(r === "astrologer"){
 
-    const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
-    if(wasOnline){
-      toggleOnline(true);
-    }
+  if(!ASTROLOGERS.includes(userId)){
+    alert("You are not authorized to be an astrologer.");
+    return;
   }
+
+  db.ref("presence/"+userId+"/role").set("astrologer");
+
+  const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
+  if(wasOnline){
+    toggleOnline(true);
+  }
+}
 }
 function applyRole(r){
   role = r;
@@ -489,9 +503,9 @@ function applyRole(r){
 
   // ⚠️ IMPORTANT:
   // Only update DB role if going ONLINE as astrologer
-  if(r === "astrologer"){
-    db.ref("presence/"+userId+"/role").set("astrologer");
-  }
+if(r === "astrologer" && ASTROLOGERS.includes(userId)){
+  db.ref("presence/"+userId+"/role").set("astrologer");
+}
 }
 /* ---------- Online Toggle ---------- */
 function toggleOnline(isOnline){
