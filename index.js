@@ -463,7 +463,14 @@ function logout(){
 /* ================= ROLE & ONLINE ================= */
 /* ---------- Role Switching ---------- */
 function switchRole(r){
+
   if(!userId) return;
+
+  // 🔒 BLOCK unauthorized astrologer access BEFORE UI switch
+  if(r === "astrologer" && !ASTROLOGERS.includes(userId)){
+    alert("You are not authorized to be an astrologer.");
+    return;
+  }
 
   if(r === "client"){
     clearMyRequests();
@@ -475,20 +482,14 @@ function switchRole(r){
   clientView.classList.toggle("hidden", r !== "client");
   astrologerView.classList.toggle("hidden", r !== "astrologer");
 
- if(r === "astrologer"){
+  if(r === "astrologer"){
+    db.ref("presence/"+userId+"/role").set("astrologer");
 
-  if(!ASTROLOGERS.includes(userId)){
-    alert("You are not authorized to be an astrologer.");
-    return;
+    const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
+    if(wasOnline){
+      toggleOnline(true);
+    }
   }
-
-  db.ref("presence/"+userId+"/role").set("astrologer");
-
-  const wasOnline = localStorage.getItem(ONLINE_KEY) === "1";
-  if(wasOnline){
-    toggleOnline(true);
-  }
-}
 }
 function applyRole(r){
   role = r;
